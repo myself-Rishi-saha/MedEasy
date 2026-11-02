@@ -1,0 +1,13 @@
+{
+  "id": "set_invoice",
+  "salePrefix": "DEMO-SAL",
+  "purchasePrefix": "DEMO-PUR",
+  "quotationPrefix": "DEMO-QUO",
+  "nextSaleNumber": 31,
+  "nextPurchaseNumber": 16,
+  "nextQuotationNumber": 11,
+  "showGstBreakdown": true,
+  "footer": "Fictional demonstration invoice. Sample tax rates are not tax guidance.",
+  "createdAt": "2026-01-01T10:00:00.000Z",
+  "updatedAt": "2026-10-01T10:00:00.000Z"
+}

@@ -1,0 +1,7 @@
+# JSON runtime storage limitations
+
+Runtime files live under `data/runtime` by default (or the server-only `MED_EASY_DATA_DIR` path). Static seeds stay under `data/seeds`; initialization copies a validated seed only when that runtime file does not exist. Startup and reads never overwrite existing runtime data. Updates are Zod-validated and written to a same-directory temporary file followed by an atomic rename; a process-local per-collection queue prevents overlapping writes within one Node process.
+
+This storage is for local development and controlled demonstrations only. It is not a reliable production datastore on Vercel or other serverless/ephemeral hosting: deployments may have read-only filesystems, multiple instances with independent disk state, restarts that discard writes, and no cross-instance lock/transaction semantics. The in-process queue cannot coordinate workers/processes. Multi-entity workflows also cannot provide database-grade transactions or crash recovery. Do not deploy as the source of truth for pharmacy, patient, payment, inventory, or authentication data.
+
+The `EntityRepository` contract is an optional seam for a future storage phase. This implementation intentionally uses local JSON only and performs no database connection or migration. Keep business logic outside route handlers. Do not replace this storage with a database unless explicitly requested in a future phase; before production use, the JSON persistence limitations must be addressed.

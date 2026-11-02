@@ -1,0 +1,194 @@
+[
+  {
+    "id": "adj_001",
+    "adjustmentNumber": "DEMO-ADJ-0001",
+    "status": "completed",
+    "reason": "Routine stock count",
+    "createdByUserId": "usr_001",
+    "adjustedOn": "2026-06-20",
+    "lines": [
+      {
+        "batchId": "bat_001",
+        "medicineId": "med_001",
+        "quantityDelta": -29,
+        "reason": "Cycle count reconciliation"
+      },
+      {
+        "batchId": "bat_002",
+        "medicineId": "med_002",
+        "quantityDelta": 1,
+        "reason": "Cycle count reconciliation"
+      }
+    ],
+    "createdAt": "2026-06-20T10:00:00.000Z",
+    "updatedAt": "2026-06-20T10:00:00.000Z"
+  },
+  {
+    "id": "adj_002",
+    "adjustmentNumber": "DEMO-ADJ-0002",
+    "status": "completed",
+    "reason": "Damaged or missing stock",
+    "createdByUserId": "usr_002",
+    "adjustedOn": "2026-06-22",
+    "lines": [
+      {
+        "batchId": "bat_003",
+        "medicineId": "med_003",
+        "quantityDelta": -1,
+        "reason": "Damaged pack write-off"
+      },
+      {
+        "batchId": "bat_004",
+        "medicineId": "med_004",
+        "quantityDelta": -16,
+        "reason": "Damaged pack write-off"
+      }
+    ],
+    "createdAt": "2026-06-22T10:00:00.000Z",
+    "updatedAt": "2026-06-22T10:00:00.000Z"
+  },
+  {
+    "id": "adj_003",
+    "adjustmentNumber": "DEMO-ADJ-0003",
+    "status": "completed",
+    "reason": "Routine stock count",
+    "createdByUserId": "usr_003",
+    "adjustedOn": "2026-06-24",
+    "lines": [
+      {
+        "batchId": "bat_005",
+        "medicineId": "med_005",
+        "quantityDelta": 1,
+        "reason": "Cycle count reconciliation"
+      }
+    ],
+    "createdAt": "2026-06-24T10:00:00.000Z",
+    "updatedAt": "2026-06-24T10:00:00.000Z"
+  },
+  {
+    "id": "adj_004",
+    "adjustmentNumber": "DEMO-ADJ-0004",
+    "status": "completed",
+    "reason": "Damaged or missing stock",
+    "createdByUserId": "usr_001",
+    "adjustedOn": "2026-06-26",
+    "lines": [
+      {
+        "batchId": "bat_006",
+        "medicineId": "med_006",
+        "quantityDelta": -1,
+        "reason": "Damaged pack write-off"
+      }
+    ],
+    "createdAt": "2026-06-26T10:00:00.000Z",
+    "updatedAt": "2026-06-26T10:00:00.000Z"
+  },
+  {
+    "id": "adj_005",
+    "adjustmentNumber": "DEMO-ADJ-0005",
+    "status": "completed",
+    "reason": "Routine stock count",
+    "createdByUserId": "usr_002",
+    "adjustedOn": "2026-06-28",
+    "lines": [
+      {
+        "batchId": "bat_007",
+        "medicineId": "med_007",
+        "quantityDelta": 1,
+        "reason": "Cycle count reconciliation"
+      }
+    ],
+    "createdAt": "2026-06-28T10:00:00.000Z",
+    "updatedAt": "2026-06-28T10:00:00.000Z"
+  },
+  {
+    "id": "adj_006",
+    "adjustmentNumber": "DEMO-ADJ-0006",
+    "status": "completed",
+    "reason": "Damaged or missing stock",
+    "createdByUserId": "usr_003",
+    "adjustedOn": "2026-06-30",
+    "lines": [
+      {
+        "batchId": "bat_008",
+        "medicineId": "med_008",
+        "quantityDelta": -1,
+        "reason": "Damaged pack write-off"
+      }
+    ],
+    "createdAt": "2026-06-30T10:00:00.000Z",
+    "updatedAt": "2026-06-30T10:00:00.000Z"
+  },
+  {
+    "id": "adj_007",
+    "adjustmentNumber": "DEMO-ADJ-0007",
+    "status": "completed",
+    "reason": "Routine stock count",
+    "createdByUserId": "usr_001",
+    "adjustedOn": "2026-07-02",
+    "lines": [
+      {
+        "batchId": "bat_009",
+        "medicineId": "med_009",
+        "quantityDelta": 1,
+        "reason": "Cycle count reconciliation"
+      }
+    ],
+    "createdAt": "2026-07-02T10:00:00.000Z",
+    "updatedAt": "2026-07-02T10:00:00.000Z"
+  },
+  {
+    "id": "adj_008",
+    "adjustmentNumber": "DEMO-ADJ-0008",
+    "status": "completed",
+    "reason": "Damaged or missing stock",
+    "createdByUserId": "usr_002",
+    "adjustedOn": "2026-07-04",
+    "lines": [
+      {
+        "batchId": "bat_010",
+        "medicineId": "med_010",
+        "quantityDelta": -1,
+        "reason": "Damaged pack write-off"
+      }
+    ],
+    "createdAt": "2026-07-04T10:00:00.000Z",
+    "updatedAt": "2026-07-04T10:00:00.000Z"
+  },
+  {
+    "id": "adj_009",
+    "adjustmentNumber": "DEMO-ADJ-0009",
+    "status": "completed",
+    "reason": "Routine stock count",
+    "createdByUserId": "usr_003",
+    "adjustedOn": "2026-07-06",
+    "lines": [
+      {
+        "batchId": "bat_011",
+        "medicineId": "med_011",
+        "quantityDelta": 1,
+        "reason": "Cycle count reconciliation"
+      }
+    ],
+    "createdAt": "2026-07-06T10:00:00.000Z",
+    "updatedAt": "2026-07-06T10:00:00.000Z"
+  },
+  {
+    "id": "adj_010",
+    "adjustmentNumber": "DEMO-ADJ-0010",
+    "status": "completed",
+    "reason": "Damaged or missing stock",
+    "createdByUserId": "usr_001",
+    "adjustedOn": "2026-07-08",
+    "lines": [
+      {
+        "batchId": "bat_012",
+        "medicineId": "med_012",
+        "quantityDelta": -1,
+        "reason": "Damaged pack write-off"
+      }
+    ],
+    "createdAt": "2026-07-08T10:00:00.000Z",
+    "updatedAt": "2026-07-08T10:00:00.000Z"
+  }
+]

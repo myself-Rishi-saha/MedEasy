@@ -1,0 +1,74 @@
+[
+  {
+    "id": "uni_001",
+    "name": "Strip",
+    "code": "STR",
+    "description": "Blister strip",
+    "status": "active",
+    "createdAt": "2026-01-01T10:00:00.000Z",
+    "updatedAt": "2026-01-01T10:00:00.000Z"
+  },
+  {
+    "id": "uni_002",
+    "name": "Bottle",
+    "code": "BTL",
+    "description": "Liquid or bottle pack",
+    "status": "active",
+    "createdAt": "2026-01-01T10:00:00.000Z",
+    "updatedAt": "2026-01-01T10:00:00.000Z"
+  },
+  {
+    "id": "uni_003",
+    "name": "Piece",
+    "code": "PCS",
+    "description": "Individual item",
+    "status": "active",
+    "createdAt": "2026-01-01T10:00:00.000Z",
+    "updatedAt": "2026-01-01T10:00:00.000Z"
+  },
+  {
+    "id": "uni_004",
+    "name": "Tube",
+    "code": "TUB",
+    "description": "Topical tube",
+    "status": "active",
+    "createdAt": "2026-01-01T10:00:00.000Z",
+    "updatedAt": "2026-01-01T10:00:00.000Z"
+  },
+  {
+    "id": "uni_005",
+    "name": "Pack",
+    "code": "PAK",
+    "description": "Retail pack",
+    "status": "active",
+    "createdAt": "2026-01-01T10:00:00.000Z",
+    "updatedAt": "2026-01-01T10:00:00.000Z"
+  },
+  {
+    "id": "uni_006",
+    "name": "Vial",
+    "code": "VIL",
+    "description": "Single-use vial",
+    "status": "active",
+    "createdAt": "2026-01-01T10:00:00.000Z",
+    "updatedAt": "2026-01-01T10:00:00.000Z"
+  },
+  {
+    "id": "uni_007",
+    "name": "Sachet",
+    "code": "SAC",
+    "description": "Single sachet",
+    "status": "active",
+    "createdAt": "2026-01-01T10:00:00.000Z",
+    "updatedAt": "2026-01-01T10:00:00.000Z"
+  },
+  {
+    "id": "uni_008",
+    "name": "Box",
+    "code": "BOX",
+    "description": "Retail box",
+    "status": "active",
+    "createdAt": "2026-01-01T10:00:00.000Z",
+    "updatedAt": "2026-01-01T10:00:00.000Z"
+  }
+]
