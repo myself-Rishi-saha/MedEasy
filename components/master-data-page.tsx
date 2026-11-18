@@ -1,8 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
+// import {
+//   Check,
+//   ChevronLeft,
+//   ChevronRight,
+//   KeyRound,
+//   LoaderCircle,
+//   Plus,
+//   Search,
+//   Settings2,
+//   ShieldCheck,
+//   X,
+// } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import * as XLSX from "xlsx";
 import {
   Check,
   ChevronLeft,
@@ -14,8 +27,10 @@ import {
   Settings2,
   ShieldCheck,
   X,
+  Download,
+  Upload,
+  FileSpreadsheet,
 } from "lucide-react";
-
 type Row = Record<string, unknown> & { id: string; status?: string };
 type ApiData<T> = { success: boolean; message: string; data: T };
 type ListData = {
@@ -87,6 +102,7 @@ const sections: Record<
       { key: "sellingPricePaise", label: "Selling price" },
       { key: "reorderLevel", label: "Min. stock" },
       { key: "status", label: "Status" },
+      { key: "hsnCode", label: "HSN Code" },
     ],
     fields: [
       { key: "name", label: "Medicine name", required: true },
@@ -95,6 +111,14 @@ const sections: Record<
       { key: "categoryId", label: "Category", type: "select", required: true },
       { key: "unitId", label: "Unit", type: "select", required: true },
       { key: "manufacturer", label: "Manufacturer", required: true },
+      {
+        key: "hsnCode",
+        label: "HSN Code",
+        type: "text",
+        required: false,
+        maxLength: 8,
+        inputMode: "numeric",
+      },
       {
         key: "stripSize",
         label: "Strip Size (Tablets per Strip)",
@@ -396,7 +420,65 @@ function formValue(field: Field, row?: Row | null) {
     return value.slice(0, 10);
   return value ?? "";
 }
+function parseCSV(text: string): Record<string, string>[] {
+  const rows: string[][] = [];
 
+  let row: string[] = [];
+  let value = "";
+  let insideQuotes = false;
+
+  const input = text.replace(/^\uFEFF/, "");
+
+  for (let i = 0; i < input.length; i++) {
+    const char = input[i];
+    const next = input[i + 1];
+
+    if (char === '"' && insideQuotes && next === '"') {
+      value += '"';
+      i++;
+    } else if (char === '"') {
+      insideQuotes = !insideQuotes;
+    } else if (char === "," && !insideQuotes) {
+      row.push(value.trim());
+      value = "";
+    } else if ((char === "\n" || char === "\r") && !insideQuotes) {
+      if (char === "\r" && next === "\n") i++;
+
+      row.push(value.trim());
+
+      if (row.some((cell) => cell !== "")) {
+        rows.push(row);
+      }
+
+      row = [];
+      value = "";
+    } else {
+      value += char;
+    }
+  }
+
+  row.push(value.trim());
+
+  if (row.some((cell) => cell !== "")) {
+    rows.push(row);
+  }
+
+  if (rows.length < 2) {
+    throw new Error("CSV file contains no medicine records.");
+  }
+
+  const headers = rows[0].map((header) => header.trim().replace(/^\uFEFF/, ""));
+
+  return rows.slice(1).map((cells) => {
+    const record: Record<string, string> = {};
+
+    headers.forEach((header, index) => {
+      record[header] = cells[index] ?? "";
+    });
+
+    return record;
+  });
+}
 export function MasterDataPage({ section }: { section: string }) {
   const config = sections[section];
   const searchParams = useSearchParams();
@@ -411,6 +493,9 @@ export function MasterDataPage({ section }: { section: string }) {
   const [busy, setBusy] = useState(false);
   const [setupToken, setSetupToken] = useState("");
   const [formVersion, setFormVersion] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [importBusy, setImportBusy] = useState(false);
   const [selectedUnitId, setSelectedUnitId] = useState("1");
   const key = `/api/v1/${section}?page=${page}&pageSize=10&sortBy=name&sortOrder=asc${query.trim() ? `&q=${encodeURIComponent(query.trim())}` : ""}${statusFilter ? `&status=${encodeURIComponent(statusFilter)}` : ""}`;
   const { data, error, isLoading, mutate } = useSWR<ListData>(
@@ -580,7 +665,320 @@ export function MasterDataPage({ section }: { section: string }) {
       setBusy(false);
     }
   }
+  async function exportMedicines() {
+    setErrorMessage("");
+    setNotice("");
 
+    try {
+      const response = await fetch("/api/v1/medicines/export", {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Could not export medicines.");
+      }
+
+      const medicines = Array.isArray(result.data)
+        ? result.data
+        : result.data?.items;
+
+      if (!Array.isArray(medicines)) {
+        throw new Error("Invalid medicine export response.");
+      }
+
+      const worksheet = XLSX.utils.json_to_sheet(medicines);
+      const workbook = XLSX.utils.book_new();
+
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Medicines");
+
+      XLSX.writeFile(workbook, "med-easy-medicines.xlsx");
+
+      setNotice("Medicines exported successfully.");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Excel export failed.",
+      );
+    }
+  }
+  function downloadMedicineTemplate() {
+    const headers = [
+      "name",
+      "sku",
+      "genericName",
+      "category",
+      "unit",
+      "manufacturer",
+      "hsnCode",
+      "stripSize",
+      "purchasePrice",
+      "sellingPrice",
+      "gstRate",
+      "reorderLevel",
+      "requiresPrescription",
+      "status",
+    ];
+
+    const worksheet = XLSX.utils.aoa_to_sheet([headers]);
+
+    // Keep HSN codes as text to preserve leading zeros.
+    worksheet["!cols"] = headers.map((header) => ({
+      wch: Math.max(header.length + 4, 16),
+    }));
+
+    const instructions = [
+      ["MED EASY - MEDICINE IMPORT TEMPLATE"],
+      ["Fill the Medicines sheet with your medicine records."],
+      ["Do not change the column names."],
+      ["Category and unit must match existing records in Med Easy."],
+      ["Prices must be entered in rupees, not paise."],
+      ["GST must be entered as a percentage, e.g. 5 or 12."],
+      ["HSN Code should be entered as text."],
+      ["requiresPrescription accepts TRUE or FALSE."],
+      ["status accepts active or inactive."],
+      ["Maximum 500 medicines per import."],
+    ];
+
+    const instructionSheet = XLSX.utils.aoa_to_sheet(instructions);
+
+    const workbook = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Medicines");
+    XLSX.utils.book_append_sheet(workbook, instructionSheet, "Instructions");
+
+    XLSX.writeFile(workbook, "med-easy-medicine-template.xlsx");
+  }
+  // async function exportMedicines() {
+  //   setErrorMessage("");
+  //   setNotice("");
+
+  //   try {
+  //     const response = await fetch("/api/v1/medicines?format=csv", {
+  //       method: "GET",
+  //     });
+
+  //     if (!response.ok) {
+  //       const result = await response.json().catch(() => null);
+  //       throw new Error(result?.message || "Could not export medicines.");
+  //     }
+
+  //     const blob = await response.blob();
+  //     const url = window.URL.createObjectURL(blob);
+
+  //     const link = document.createElement("a");
+  //     link.href = url;
+  //     link.download = "med-easy-medicines.csv";
+
+  //     document.body.appendChild(link);
+  //     link.click();
+  //     link.remove();
+
+  //     window.URL.revokeObjectURL(url);
+
+  //     setNotice("Medicine CSV exported successfully.");
+  //   } catch (error) {
+  //     setErrorMessage(
+  //       error instanceof Error ? error.message : "Export failed.",
+  //     );
+  //   }
+  // }
+  async function importMedicines(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    setErrorMessage("");
+    setNotice("");
+
+    if (!file.name.toLowerCase().endsWith(".xlsx")) {
+      setErrorMessage("Please select an Excel (.xlsx) file.");
+      event.target.value = "";
+      return;
+    }
+
+    setImportBusy(true);
+
+    try {
+      const buffer = await file.arrayBuffer();
+
+      const workbook = XLSX.read(buffer, {
+        type: "array",
+      });
+
+      const firstSheet = workbook.Sheets["Medicines"];
+
+      if (!firstSheet) {
+        throw new Error(
+          'Excel file must contain a worksheet named "Medicines".',
+        );
+      }
+
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
+        firstSheet,
+        {
+          defval: "",
+          raw: false,
+        },
+      );
+
+      if (!rows.length) {
+        throw new Error("Excel file contains no medicine records.");
+      }
+
+      if (rows.length > 500) {
+        throw new Error("Maximum 500 medicines can be imported at once.");
+      }
+
+      const requiredHeaders = [
+        "name",
+        "sku",
+        "genericName",
+        "category",
+        "unit",
+        "manufacturer",
+        "hsnCode",
+        "stripSize",
+        "purchasePrice",
+        "sellingPrice",
+        "gstRate",
+        "reorderLevel",
+        "requiresPrescription",
+        "status",
+      ];
+
+      const actualHeaders = Object.keys(rows[0]).map((header) => header.trim());
+
+      const missingHeaders = requiredHeaders.filter(
+        (header) => !actualHeaders.includes(header),
+      );
+
+      if (missingHeaders.length) {
+        throw new Error(`Missing Excel columns: ${missingHeaders.join(", ")}`);
+      }
+
+      const response = await fetch("/api/v1/medicines/import", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ rows }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Medicine import failed.");
+      }
+
+      const imported = Number(result.data?.imported ?? 0);
+      const failed = Number(result.data?.failed ?? 0);
+      const errors = result.data?.errors ?? [];
+
+      setNotice(
+        `Import completed: ${imported} medicines imported, ${failed} failed.`,
+      );
+
+      if (errors.length) {
+        setErrorMessage(
+          errors
+            .slice(0, 5)
+            .map(
+              (item: { row: number; message: string }) =>
+                `Row ${item.row}: ${item.message}`,
+            )
+            .join(" | "),
+        );
+      }
+
+      setPage(1);
+      await mutate();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Excel import failed.",
+      );
+    } finally {
+      setImportBusy(false);
+      event.target.value = "";
+    }
+  }
+  // async function importMedicines(event: React.ChangeEvent<HTMLInputElement>) {
+  //   const file = event.target.files?.[0];
+
+  //   if (!file) return;
+
+  //   setErrorMessage("");
+  //   setNotice("");
+
+  //   if (!file.name.toLowerCase().endsWith(".csv")) {
+  //     setErrorMessage("Please select a CSV file.");
+  //     event.target.value = "";
+  //     return;
+  //   }
+
+  //   setImportBusy(true);
+
+  //   try {
+  //     const text = await file.text();
+  //     const rows = parseCSV(text);
+
+  //     if (rows.length > 500) {
+  //       throw new Error("You can import a maximum of 500 medicines at a time.");
+  //     }
+
+  //     const response = await fetch("/api/v1/medicines/import", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify({ rows }),
+  //     });
+
+  //     const result = (await response.json()) as ApiData<{
+  //       imported: number;
+  //       failed: number;
+  //       errors?: Array<{
+  //         row: number;
+  //         message: string;
+  //       }>;
+  //     }>;
+
+  //     if (!response.ok) {
+  //       throw new Error(result.message || "Medicine import failed.");
+  //     }
+
+  //     const imported = result.data.imported ?? 0;
+  //     const failed = result.data.failed ?? 0;
+
+  //     if (failed > 0) {
+  //       const details = result.data.errors
+  //         ?.slice(0, 5)
+  //         .map((error) => `Row ${error.row}: ${error.message}`)
+  //         .join("\n");
+
+  //       setNotice(`Imported ${imported} medicines. ${failed} rows failed.`);
+
+  //       setErrorMessage(
+  //         details || "Some records could not be imported. Check the CSV data.",
+  //       );
+  //     } else {
+  //       setNotice(`${imported} medicines imported successfully.`);
+  //     }
+
+  //     await mutate();
+  //   } catch (error) {
+  //     setErrorMessage(
+  //       error instanceof Error ? error.message : "Could not import medicines.",
+  //     );
+  //   } finally {
+  //     setImportBusy(false);
+
+  //     if (fileInputRef.current) {
+  //       fileInputRef.current.value = "";
+  //     }
+  //   }
+  // }
   async function issueSetupToken(row: Row) {
     setEditing(row);
     setSetupToken("");
@@ -642,7 +1040,7 @@ export function MasterDataPage({ section }: { section: string }) {
           </h1>
           <p className="mt-1 text-xs text-[#87938e]">{config.description}</p>
         </div>
-        {canWrite && (
+        {/* {canWrite && (
           <button onClick={openCreate} className={buttonPrimary}>
             <Plus size={15} /> Add{" "}
             {section === "patients"
@@ -651,7 +1049,64 @@ export function MasterDataPage({ section }: { section: string }) {
                 ? "user"
                 : section.slice(0, -1)}
           </button>
-        )}
+        )} */}
+        <div className="flex flex-wrap items-center gap-2">
+          {section === "medicines" && canWrite && (
+            <>
+              <button
+                type="button"
+                onClick={() => void exportMedicines()}
+                className={buttonSecondary}
+              >
+                <Download size={14} />
+                Export Excel
+              </button>
+
+              <button
+                type="button"
+                onClick={downloadMedicineTemplate}
+                className={buttonSecondary}
+              >
+                <FileSpreadsheet size={14} />
+                Download Template
+              </button>
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={importBusy}
+                className={buttonSecondary}
+              >
+                {importBusy ? (
+                  <LoaderCircle size={14} className="animate-spin" />
+                ) : (
+                  <Upload size={14} />
+                )}
+                {importBusy ? "Importing..." : "Import Excel"}
+              </button>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx"
+                className="hidden"
+                onChange={(event) => void importMedicines(event)}
+              />
+            </>
+          )}
+
+          {canWrite && (
+            <button onClick={openCreate} className={buttonPrimary}>
+              <Plus size={15} />
+              Add{" "}
+              {section === "patients"
+                ? "customer"
+                : section === "users"
+                  ? "user"
+                  : section.slice(0, -1)}
+            </button>
+          )}
+        </div>
       </div>
       {notice && (
         <div

@@ -28,5 +28,14 @@
     "lastLoginAt": "2026-10-29T19:00:00.000Z",
     "createdAt": "2026-01-03T10:00:00.000Z",
     "updatedAt": "2026-01-03T10:00:00.000Z"
+  } ,{
+    "id": "usr_004",
+    "name": "Aarav Patel",
+    "email": "abc@gmail.com",
+    "role": "admin",
+    "status": "active",
+    "lastLoginAt": "2026-10-30T09:00:00.000Z",
+    "createdAt": "2026-01-01T10:00:00.000Z",
+    "updatedAt": "2026-01-01T10:00:00.000Z"
   }
 ]

@@ -18,6 +18,7 @@ import {
   Printer,
   Search,
   Trash2,
+  Wallet,
   X,
 } from "lucide-react";
 import type {
@@ -877,6 +878,7 @@ function TransactionEditor({
     initial?.purchasedOn ?? initial?.soldOn ?? initial?.issuedOn ?? today(),
   );
   const [validUntil, setValidUntil] = useState(initial?.validUntil ?? today());
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [supplierInvoiceNumber, setSupplierInvoiceNumber] = useState(
     initial?.supplierInvoiceNumber ?? "",
   );
@@ -920,10 +922,12 @@ function TransactionEditor({
             medicineId: item.medicineId,
             quantity: item.quantity,
             discountPercent: 0,
-            unitPriceRupees: paiseToRupees((item.unitPricePaise/100)),
+            unitPriceRupees: paiseToRupees(item.unitPricePaise / 100),
             batchNumber: item.batchNumber ?? "",
             expiryDate: item.expiryDate ?? "",
-            sellingPriceRupees: paiseToRupees((item.sellingPricePaise ?? 0)/100),
+            sellingPriceRupees: paiseToRupees(
+              (item.sellingPricePaise ?? 0) / 100,
+            ),
             reorderLevel: item.reorderLevel ?? 0,
             batchId: item.batchId ?? "",
             stripSize: medicine?.stripSize ?? 1,
@@ -1105,6 +1109,41 @@ function TransactionEditor({
 
     setSearch("");
   };
+  //const isSale = section === "sales";
+
+  const {
+    data: customerSales,
+    isLoading: customerSalesLoading,
+    mutate: mutateCustomerSales,
+  } = useSWR<{
+    items: {
+      id: string;
+      patientId: string | null;
+      totalPaise: number;
+      paidPaise: number;
+      status: string;
+    }[];
+  }>(
+    isSale && customerId
+      ? `/api/v1/sales?page=1&pageSize=100&patientId=${encodeURIComponent(customerId)}`
+      : null,
+    fetcher,
+  );
+
+  const customerOutstandingPaise = useMemo(() => {
+    if (!customerId) return 0;
+
+    return (customerSales?.items ?? [])
+      .filter(
+        (sale) =>
+          sale.patientId === customerId &&
+          ["completed", "partially_paid"].includes(sale.status),
+      )
+      .reduce(
+        (total, sale) => total + Math.max(0, sale.totalPaise - sale.paidPaise),
+        0,
+      );
+  }, [customerSales, customerId]);
 
   const changeLine = (index: number, change: Partial<LineDraft>) =>
     setLines((current) =>
@@ -1596,11 +1635,49 @@ function TransactionEditor({
                               )}
                           </div>
 
-                          {selectedCustomer && (
+                          {/* {selectedCustomer && (
                             <p className="text-[10px] text-[#218066]">
                               <Check size={12} className="mr-1 inline" />
                               Linked to {selectedCustomer.name}
                             </p>
+                          )} */}
+                          {selectedCustomer && (
+                            <div className="mt-2 rounded-lg border border-[#dcebe3] bg-[#f7fbf8] p-3">
+                              <p className="text-[11px] font-semibold text-[#218066]">
+                                <Check size={12} className="mr-1 inline" />
+                                Linked to {selectedCustomer.name}
+                              </p>
+
+                              <div className="mt-3 flex items-center justify-between">
+                                <div>
+                                  <p className="text-[10px] text-[#84918b]">
+                                    Previous outstanding credit
+                                  </p>
+                                  <p className="mt-1 text-lg font-bold text-[#b4534b]">
+                                    {customerSalesLoading
+                                      ? "Loading..."
+                                      : money(customerOutstandingPaise)}
+                                  </p>
+                                  {!customerSalesLoading &&
+                                    customerOutstandingPaise > 0 && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setPaymentDialogOpen(true)
+                                        }
+                                        className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-[#087e68] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#066b59]"
+                                      >
+                                        <Wallet size={16} />
+                                        Record Payment
+                                      </button>
+                                    )}
+                                </div>
+
+                                <span className="rounded-md bg-white px-2 py-1 text-[9px] font-semibold text-[#718078]">
+                                  Previous dues
+                                </span>
+                              </div>
+                            </div>
                           )}
                         </Field>
                       ) : (
@@ -2136,7 +2213,9 @@ function TransactionEditor({
                 </div>
                 <div className="flex justify-between text-[#798680]">
                   <span>Pre-tax estimate</span>
-                  <span className="text-[15px] text-black">{money(runningTotal)}</span>
+                  <span className="text-[15px] text-black">
+                    {money(runningTotal)}
+                  </span>
                 </div>
                 <div className="border-t border-dashed border-[#dfe8e3] pt-3">
                   <p className="text-[10px] leading-5 text-[#77847e]">
@@ -2145,33 +2224,7 @@ function TransactionEditor({
                   </p>
                 </div>
               </div>
-              {/* <div className="mt-4 flex flex-col gap-3 text-[11px]">
-                <div className="flex justify-between text-[#798680]">
-                  <span>Lines</span>
-                  <span>{lines.length}</span>
-                </div>
 
-                <div className="border-t border-dashed border-[#dfe8e3] pt-3">
-                  <div className="rounded-xl border border-[#b9d9c9] bg-[#edf8f2] px-4 py-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-[#527663]">
-                      Pre-tax estimate
-                    </p>
-                    <p className="mt-2 text-xl font-extrabold tracking-tight text-[#176b45]">
-                      {money(runningTotal)}
-                    </p>
-                    <p className="mt-1 text-[10px] font-medium text-[#668675]">
-                      Estimated amount before tax
-                    </p>
-                  </div>
-                </div>
-
-                <div className="border-t border-dashed border-[#dfe8e3] pt-3">
-                  <p className="text-[10px] leading-5 text-[#77847e]">
-                    Server totals may include configured tax and can differ from
-                    this estimate.
-                  </p>
-                </div>
-              </div> */}
               <button
                 disabled={pending}
                 className={`${primary} mt-5 w-full`}
@@ -2198,6 +2251,18 @@ function TransactionEditor({
           </form>
         )
       }
+      {paymentDialogOpen && selectedCustomer && (
+        <PaymentDialog
+          transactionType="sale"
+          presetPatientId={selectedCustomer.id}
+          patients={patients?.items ?? []}
+          onClose={() => setPaymentDialogOpen(false)}
+          onSaved={async () => {
+            await mutateCustomerSales();
+            setPaymentDialogOpen(false);
+          }}
+        />
+      )}
     </>
   );
 }
@@ -2787,11 +2852,21 @@ function SaleCompletionDialog({
     event.preventDefault();
     setPending(true);
     setError("");
+    // const payload = {
+    //   payment: {
+    //     amountPaise: method === "credit" ? 0 : rupeesToPaise(amount),
+    //     method,
+    //     reference: reference.trim() || sale.invoiceNumber,
+    //   },
+    // };
     const payload = {
       payment: {
         amountPaise: method === "credit" ? 0 : rupeesToPaise(amount),
         method,
-        reference: reference.trim() || sale.invoiceNumber,
+        reference:
+          method === "credit"
+            ? "N/A"
+            : reference.trim() || sale.invoiceNumber || "N/A",
       },
     };
     try {
@@ -2902,7 +2977,7 @@ function ExpenseEditor({ initial }: { initial?: Expense } = {}) {
       incurredOn,
       amountPaise: rupeesToPaise(amount),
       method,
-      reference: reference.trim(),
+      reference: reference.trim() || "N/A",
       notes,
       paidInCash,
     };
@@ -3246,6 +3321,7 @@ function PaymentDialog(props: {
   onClose: () => void;
   onSaved: () => void | Promise<void>;
   routeMode?: boolean;
+  presetPatientId?: string;
 }) {
   const [type, setType] = useState<"sale" | "purchase">(
     props.transactionType ?? "sale",
@@ -3258,15 +3334,33 @@ function PaymentDialog(props: {
   const [reference, setReference] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+
   const keyRef = useRef<{ signature: string; key: string } | null>(null);
+
+  // Customer-level payment mode: one payment for all outstanding sales.
+  const isCustomerPayment =
+    type === "sale" &&
+    Boolean(props.presetPatientId) &&
+    !props.presetTransactionId;
+
   const { data: sales } = useSWR<{ items: Sale[] }>(
-    type === "sale" ? "/api/v1/sales?page=1&pageSize=100" : null,
+    type === "sale"
+      ? `/api/v1/sales?page=1&pageSize=100${
+          props.presetPatientId
+            ? `&patientId=${encodeURIComponent(props.presetPatientId)}`
+            : ""
+        }`
+      : null,
     fetcher,
   );
+
   const { data: purchases } = useSWR<{ items: Purchase[] }>(
-    type === "purchase" ? "/api/v1/purchases?page=1&pageSize=100" : null,
+    type === "purchase"
+      ? "/api/v1/purchases?page=1&pageSize=100"
+      : null,
     fetcher,
   );
+
   const eligible =
     type === "sale"
       ? (sales?.items ?? []).filter(
@@ -3278,29 +3372,81 @@ function PaymentDialog(props: {
           (item) =>
             item.status === "received" && item.totalPaise > item.paidPaise,
         );
+
   const selected = eligible.find((item) => item.id === transactionId);
-  const outstanding = selected ? selected.totalPaise - selected.paidPaise : 0;
+
+  // Total outstanding across all invoices belonging to this customer.
+  const customerOutstanding = isCustomerPayment
+    ? eligible.reduce(
+        (total, item) => total + item.totalPaise - item.paidPaise,
+        0,
+      )
+    : 0;
+
+  const outstanding = isCustomerPayment
+    ? customerOutstanding
+    : selected
+      ? selected.totalPaise - selected.paidPaise
+      : 0;
+
   const form = (
     <>
       <Notice error={error} />
+
       <form
         className="flex flex-col gap-3"
         onSubmit={async (event) => {
           event.preventDefault();
-          setPending(true);
           setError("");
+
+          const amountPaise = rupeesToPaise(amount);
+
+          if (amountPaise <= 0) {
+            setError("Enter a valid payment amount.");
+            return;
+          }
+
+          if (amountPaise > outstanding) {
+            setError("Payment cannot exceed the outstanding balance.");
+            return;
+          }
+
+          if (isCustomerPayment && !props.presetPatientId) {
+            setError("Select a customer first.");
+            return;
+          }
+
+          if (!isCustomerPayment && !transactionId) {
+            setError("Select an outstanding transaction.");
+            return;
+          }
+
+          setPending(true);
+
+          // Customer-level payment sends patientId.
+          // Invoice-level payment sends transactionId.
           const payload = {
             transactionType: type,
-            transactionId,
-            amountPaise: rupeesToPaise(amount),
+            ...(isCustomerPayment
+              ? { patientId: props.presetPatientId! }
+              : { transactionId }),
+            amountPaise,
             method,
-            reference: reference.trim(),
+            reference: reference.trim() || "N/A",
             paidOn: today(),
           };
+
           try {
             const keyState = newKey(keyRef.current, payload);
             keyRef.current = keyState;
-            await send("/api/v1/payments", "POST", payload, keyState.key);
+
+            await send(
+              "/api/v1/payments",
+              "POST",
+              payload,
+              keyState.key,
+            );
+
             await props.onSaved();
           } catch (requestError) {
             setError(
@@ -3321,6 +3467,8 @@ function PaymentDialog(props: {
               onChange={(event) => {
                 setType(event.target.value as typeof type);
                 setTransactionId("");
+                setAmount("");
+                keyRef.current = null;
               }}
             >
               <option value="sale">Received from customer</option>
@@ -3328,35 +3476,72 @@ function PaymentDialog(props: {
             </select>
           </Field>
         )}
-        <Field label={type === "sale" ? "Invoice" : "Purchase"}>
-          <select
-            required
-            disabled={Boolean(props.presetTransactionId)}
-            className={select}
-            value={transactionId}
-            onChange={(event) => setTransactionId(event.target.value)}
-          >
-            <option value="">Select an outstanding transaction</option>
-            {eligible.map((entry) => (
-              <option key={entry.id} value={entry.id}>
-                {entry.invoiceNumber} ·{" "}
-                {type === "sale"
-                  ? (props.patients?.find(
-                      (party) => party.id === (entry as Sale).patientId,
-                    )?.name ?? "Walk-in")
-                  : (props.suppliers?.find(
-                      (party) => party.id === (entry as Purchase).supplierId,
-                    )?.name ?? "Supplier")}{" "}
-                · due {money(entry.totalPaise - entry.paidPaise)}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <div className="rounded-lg bg-[#f3f8f5] p-3 text-[10px] text-[#708078]">
-          Outstanding balance:{" "}
-          <strong className="text-[#405149]">{money(outstanding)}</strong>
-        </div>
-        <Field label="Amount (₹)">
+
+        {isCustomerPayment ? (
+          <div className="rounded-lg border border-[#dcebe3] bg-[#f7fbf8] p-3">
+            <p className="text-[10px] font-medium text-[#84918b]">
+              Customer
+            </p>
+            <p className="mt-1 text-sm font-semibold text-[#26352f]">
+              {props.patients?.find(
+                (patient) => patient.id === props.presetPatientId,
+              )?.name ?? "Selected customer"}
+            </p>
+            <p className="mt-3 text-[10px] text-[#84918b]">
+              Total outstanding credit
+            </p>
+            <p className="mt-1 text-xl font-bold text-[#b4534b]">
+              {money(customerOutstanding)}
+            </p>
+            <p className="mt-2 text-[10px] leading-4 text-[#84918b]">
+              This payment will automatically be allocated to the customer's
+              oldest outstanding invoices first.
+            </p>
+          </div>
+        ) : (
+          <>
+            <Field label={type === "sale" ? "Invoice" : "Purchase"}>
+              <select
+                required
+                disabled={Boolean(props.presetTransactionId)}
+                className={select}
+                value={transactionId}
+                onChange={(event) => {
+                  setTransactionId(event.target.value);
+                  setAmount("");
+                  keyRef.current = null;
+                }}
+              >
+                <option value="">Select an outstanding transaction</option>
+
+                {eligible.map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.invoiceNumber} ·{" "}
+                    {type === "sale"
+                      ? (props.patients?.find(
+                          (party) =>
+                            party.id === (entry as Sale).patientId,
+                        )?.name ?? "Walk-in")
+                      : (props.suppliers?.find(
+                          (party) =>
+                            party.id === (entry as Purchase).supplierId,
+                        )?.name ?? "Supplier")}{" "}
+                    · due {money(entry.totalPaise - entry.paidPaise)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <div className="rounded-lg bg-[#f3f8f5] p-3 text-[10px] text-[#708078]">
+              Outstanding balance:{" "}
+              <strong className="text-[#405149]">
+                {money(outstanding)}
+              </strong>
+            </div>
+          </>
+        )}
+
+        <Field label="Amount received (₹)">
           <input
             required
             min="0.01"
@@ -3365,16 +3550,22 @@ function PaymentDialog(props: {
             type="number"
             className={input}
             value={amount}
-            onChange={(event) => setAmount(event.target.value)}
+            onChange={(event) => {
+              setAmount(event.target.value);
+              keyRef.current = null;
+            }}
+            placeholder="Enter amount"
           />
         </Field>
+
         <Field label="Method">
           <select
             className={select}
             value={method}
-            onChange={(event) =>
-              setMethod(event.target.value as (typeof methods)[number])
-            }
+            onChange={(event) => {
+              setMethod(event.target.value as (typeof methods)[number]);
+              keyRef.current = null;
+            }}
           >
             {methods.map((option) => (
               <option key={option} value={option}>
@@ -3383,37 +3574,272 @@ function PaymentDialog(props: {
             ))}
           </select>
         </Field>
-        <Field label="Reference number">
+
+        <Field label="Reference number (optional)">
           <input
-            required
             className={input}
             value={reference}
-            onChange={(event) => setReference(event.target.value)}
+            onChange={(event) => {
+              setReference(event.target.value);
+              keyRef.current = null;
+            }}
             placeholder="UPI / card / bank reference"
           />
         </Field>
+
         <div className="mt-1 flex justify-end gap-2">
           {!props.routeMode && (
-            <button type="button" className={secondary} onClick={props.onClose}>
+            <button
+              type="button"
+              className={secondary}
+              onClick={props.onClose}
+            >
               Cancel
             </button>
           )}
+
           <button
-            disabled={pending || !transactionId}
+            disabled={
+              pending ||
+              outstanding <= 0 ||
+              (isCustomerPayment
+                ? !props.presetPatientId
+                : !transactionId)
+            }
             className={primary}
             type="submit"
           >
-            {pending ? "Recording…" : "Record payment"}
+            {pending
+              ? "Recording…"
+              : isCustomerPayment
+                ? "Record customer payment"
+                : "Record payment"}
           </button>
         </div>
       </form>
     </>
   );
+
   return props.routeMode ? (
-    <section className={`${surface} max-w-2xl p-4 md:p-6`}>{form}</section>
+    <section className={`${surface} max-w-2xl p-4 md:p-6`}>
+      {form}
+    </section>
   ) : (
-    <Modal title="Record payment" onClose={props.onClose}>
+    <Modal
+      title={
+        isCustomerPayment
+          ? "Record customer credit payment"
+          : "Record payment"
+      }
+      onClose={props.onClose}
+    >
       {form}
     </Modal>
   );
 }
+
+// function PaymentDialog(props: {
+//   transactionType?: "sale" | "purchase";
+//   presetTransactionId?: string;
+//   suppliers?: Supplier[];
+//   patients?: Patient[];
+//   onClose: () => void;
+//   onSaved: () => void | Promise<void>;
+//   routeMode?: boolean;
+//   presetPatientId?: string;
+// }) {
+//   const [type, setType] = useState<"sale" | "purchase">(
+//     props.transactionType ?? "sale",
+//   );
+//   const [transactionId, setTransactionId] = useState(
+//     props.presetTransactionId ?? "",
+//   );
+//   const [amount, setAmount] = useState("");
+//   const [method, setMethod] = useState<(typeof methods)[number]>("cash");
+//   const [reference, setReference] = useState("");
+//   const [error, setError] = useState("");
+//   const [pending, setPending] = useState(false);
+//   const keyRef = useRef<{ signature: string; key: string } | null>(null);
+//   // const { data: sales } = useSWR<{ items: Sale[] }>(
+//   //   type === "sale" ? "/api/v1/sales?page=1&pageSize=100" : null,
+//   //   fetcher,
+//   // );
+//   const { data: sales } = useSWR<{ items: Sale[] }>(
+//     type === "sale"
+//       ? `/api/v1/sales?page=1&pageSize=100${
+//           props.presetPatientId
+//             ? `&patientId=${encodeURIComponent(props.presetPatientId)}`
+//             : ""
+//         }`
+//       : null,
+//     fetcher,
+//   );
+//   const { data: purchases } = useSWR<{ items: Purchase[] }>(
+//     type === "purchase" ? "/api/v1/purchases?page=1&pageSize=100" : null,
+//     fetcher,
+//   );
+//   const eligible =
+//     type === "sale"
+//       ? (sales?.items ?? []).filter(
+//           (item) =>
+//             ["completed", "partially_paid"].includes(item.status) &&
+//             item.totalPaise > item.paidPaise,
+//         )
+//       : (purchases?.items ?? []).filter(
+//           (item) =>
+//             item.status === "received" && item.totalPaise > item.paidPaise,
+//         );
+//   const selected = eligible.find((item) => item.id === transactionId);
+//   const outstanding = selected ? selected.totalPaise - selected.paidPaise : 0;
+//   const form = (
+//     <>
+//       <Notice error={error} />
+//       <form
+//         className="flex flex-col gap-3"
+//         onSubmit={async (event) => {
+//           event.preventDefault();
+//           setPending(true);
+//           setError("");
+//           // const payload = {
+//           //   transactionType: type,
+//           //   transactionId,
+//           //   amountPaise: rupeesToPaise(amount),
+//           //   method,
+//           //   reference: reference.trim(),
+//           //   paidOn: today(),
+//           // };
+//           const payload = {
+//             transactionType: type,
+//             transactionId,
+//             amountPaise: rupeesToPaise(amount),
+//             method,
+//             reference: reference.trim() || "N/A",
+//             paidOn: today(),
+//           };
+//           try {
+//             const keyState = newKey(keyRef.current, payload);
+//             keyRef.current = keyState;
+//             await send("/api/v1/payments", "POST", payload, keyState.key);
+//             await props.onSaved();
+//           } catch (requestError) {
+//             setError(
+//               requestError instanceof Error
+//                 ? requestError.message
+//                 : "Could not record payment",
+//             );
+//           } finally {
+//             setPending(false);
+//           }
+//         }}
+//       >
+//         {!props.transactionType && (
+//           <Field label="Payment direction">
+//             <select
+//               className={select}
+//               value={type}
+//               onChange={(event) => {
+//                 setType(event.target.value as typeof type);
+//                 setTransactionId("");
+//               }}
+//             >
+//               <option value="sale">Received from customer</option>
+//               <option value="purchase">Paid to supplier</option>
+//             </select>
+//           </Field>
+//         )}
+//         <Field label={type === "sale" ? "Invoice" : "Purchase"}>
+//           <select
+//             required
+//             disabled={Boolean(props.presetTransactionId)}
+//             className={select}
+//             value={transactionId}
+//             onChange={(event) => setTransactionId(event.target.value)}
+//           >
+//             <option value="">Select an outstanding transaction</option>
+//             {eligible.map((entry) => (
+//               <option key={entry.id} value={entry.id}>
+//                 {entry.invoiceNumber} ·{" "}
+//                 {type === "sale"
+//                   ? (props.patients?.find(
+//                       (party) => party.id === (entry as Sale).patientId,
+//                     )?.name ?? "Walk-in")
+//                   : (props.suppliers?.find(
+//                       (party) => party.id === (entry as Purchase).supplierId,
+//                     )?.name ?? "Supplier")}{" "}
+//                 · due {money(entry.totalPaise - entry.paidPaise)}
+//               </option>
+//             ))}
+//           </select>
+//         </Field>
+//         <div className="rounded-lg bg-[#f3f8f5] p-3 text-[10px] text-[#708078]">
+//           Outstanding balance:{" "}
+//           <strong className="text-[#405149]">{money(outstanding)}</strong>
+//         </div>
+//         <Field label="Amount (₹)">
+//           <input
+//             required
+//             min="0.01"
+//             step="0.01"
+//             max={paiseToRupees(outstanding)}
+//             type="number"
+//             className={input}
+//             value={amount}
+//             onChange={(event) => setAmount(event.target.value)}
+//           />
+//         </Field>
+//         <Field label="Method">
+//           <select
+//             className={select}
+//             value={method}
+//             onChange={(event) =>
+//               setMethod(event.target.value as (typeof methods)[number])
+//             }
+//           >
+//             {methods.map((option) => (
+//               <option key={option} value={option}>
+//                 {option.replaceAll("_", " ")}
+//               </option>
+//             ))}
+//           </select>
+//         </Field>
+//         {/* <Field label="Reference number">
+//           <input
+//             className={input}
+//             value={reference}
+//             onChange={(event) => setReference(event.target.value)}
+//             placeholder="UPI / card / bank reference"
+//           />
+//         </Field> */}
+//         <Field label="Reference number (optional)">
+//           <input
+//             className={input}
+//             value={reference}
+//             onChange={(event) => setReference(event.target.value)}
+//             placeholder="UPI / card / bank reference"
+//           />
+//         </Field>
+//         <div className="mt-1 flex justify-end gap-2">
+//           {!props.routeMode && (
+//             <button type="button" className={secondary} onClick={props.onClose}>
+//               Cancel
+//             </button>
+//           )}
+//           <button
+//             disabled={pending || !transactionId}
+//             className={primary}
+//             type="submit"
+//           >
+//             {pending ? "Recording…" : "Record payment"}
+//           </button>
+//         </div>
+//       </form>
+//     </>
+//   );
+//   return props.routeMode ? (
+//     <section className={`${surface} max-w-2xl p-4 md:p-6`}>{form}</section>
+//   ) : (
+//     <Modal title="Record payment" onClose={props.onClose}>
+//       {form}
+//     </Modal>
+//   );
+// }

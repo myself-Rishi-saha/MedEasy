@@ -74,6 +74,7 @@ export const medicineSchema = z.object({
   purchasePricePaise: money,
   sellingPricePaise: money,
   // stripSize: z.number().int().positive().nullable().optional(),
+  hsnCode: z.string().trim().default(""),
   stripSize: z.number().int().positive().default(1),
   gstRateBps: z.number().int().min(0).max(10000),
   reorderLevel: z.number().int().nonnegative(),

@@ -1,0 +1,3 @@
+name,sku,genericName,category,unit,manufacturer,hsnCode,stripSize,purchasePrice,sellingPrice,gstRate,reorderLevel,requiresPrescription,status
+Paracetamol 500 mg,MED-001,Paracetamol,Tablets,Strip,ABC Pharma,30049099,10,20.00,25.00,5,10,false,active
+Cetirizine 10 mg,MED-002,Cetirizine,Tablets,Strip,XYZ Pharma,30049099,10,15.00,20.00,5,5,false,active
