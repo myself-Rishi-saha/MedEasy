@@ -30,14 +30,31 @@ export function errorResponse(error: unknown, requestId?: string) {
       errors: error.issues.map((issue) => ({ path: issue.path.join('.'), message: issue.message })),
     }, { status: 422 })
   }
-  logApiError(requestId)
+  logApiError(requestId, error)
   return Response.json({ success: false, message: 'The request could not be completed', code: 'INTERNAL_ERROR', errors: [] }, { status: 500 })
 }
 
-function logApiError(requestId?: string) {
-  console.error(JSON.stringify({ level: 'error', event: 'api_request_failed', requestId: requestId ?? null, occurredAt: new Date().toISOString() }))
+// function logApiError(requestId?: string) {
+//   console.error(JSON.stringify({ level: 'error', event: 'api_request_failed', requestId: requestId ?? null, occurredAt: new Date().toISOString() }))
+// }
+function logApiError(requestId?: string, error?: unknown) {
+  console.error(
+    JSON.stringify({
+      level: "error",
+      event: "api_request_failed",
+      requestId: requestId ?? null,
+      occurredAt: new Date().toISOString(),
+      errorName: error instanceof Error ? error.name : "UnknownError",
+      errorMessage:
+        error instanceof Error ? error.message : String(error),
+      errorCode:
+        error && typeof error === "object" && "code" in error
+          ? String(error.code)
+          : null,
+      stack: error instanceof Error ? error.stack : undefined,
+    }),
+  );
 }
-
 export async function parseJsonBody<T>(request: Request, schema: { parse: (input: unknown) => T }): Promise<T> {
   let body: unknown
   try {
