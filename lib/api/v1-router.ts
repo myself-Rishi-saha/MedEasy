@@ -498,9 +498,11 @@ const filteredSales: SalesRegisterRecord[] = enrichedSales.filter((sale) => {
     return sale.outstandingPaise > 0;
   }
 
-  if (method !== "all") {
-    return sale.paymentMethods.includes(method);
-  }
+if (method !== "all") {
+  return sale.paymentMethods.includes(
+    method as NonNullable<SaleRecord["settlementMethod"]>
+  );
+}
 
   return true;
 });
