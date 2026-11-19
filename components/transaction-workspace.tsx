@@ -290,45 +290,75 @@ export function TransactionWorkspace({
   action?: string;
   operation?: string;
 }) {
+  function getTodayInIndia() {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date());
+
+    const values = Object.fromEntries(
+      parts.map((part) => [part.type, part.value]),
+    );
+
+    return `${values.year}-${values.month}-${values.day}`;
+  }
+  const [salesFrom, setSalesFrom] = useState(getTodayInIndia);
+  const [salesTo, setSalesTo] = useState(getTodayInIndia);
+  const [paymentMethod, setPaymentMethod] = useState("all");
+
   const detailUrl =
     action && action !== "new" ? `/api/v1/${section}/${action}` : null;
+
   const {
     data: detailData,
     error: detailError,
     isLoading: detailLoading,
     mutate: refreshDetail,
   } = useSWR<AnyRecord>(detailUrl, fetcher);
+
   const listUrl = !action
     ? section === "cash-book"
       ? "/api/v1/cash-book"
-      : `/api/v1/${section}?page=1&pageSize=100&sortBy=createdAt&sortOrder=desc`
+      : section === "sales"
+        ? (() => {
+            const params = new URLSearchParams({
+              page: "1",
+              pageSize: "100",
+              sortBy: "soldOn",
+              sortOrder: "desc",
+              from: salesFrom,
+              to: salesTo,
+              paymentMethod,
+            });
+
+            return `/api/v1/sales?${params.toString()}`;
+          })()
+        : `/api/v1/${section}?page=1&pageSize=100&sortBy=createdAt&sortOrder=desc`
     : null;
+
   const {
     data: listData,
     error: listError,
     isLoading: listLoading,
     mutate: refreshList,
   } = useSWR<AnyRecord>(listUrl, fetcher);
+
   const { data: suppliers } = useSWR<{ items: Supplier[] }>(
     section === "purchases" || section === "payments"
       ? "/api/v1/suppliers?page=1&pageSize=100"
       : null,
     fetcher,
   );
-  // const { data: patients } = useSWR<{ items: Patient[] }>(
-  //   section === "sales" || section === "quotations" || section === "payments"
-  //     ? "/api/v1/patients?page=1&pageSize=100"
-  //     : null,
-  //   fetcher,
-  // );
+
   const { data: patients } = useSWR<{ items: Patient[] }>(
-    section === "sales"
-      ? null // Sales will search patients by phone separately
-      : section === "quotations" || section === "payments"
-        ? "/api/v1/patients?page=1&pageSize=100"
-        : null,
+    section === "quotations" || section === "payments"
+      ? "/api/v1/patients?page=1&pageSize=100"
+      : null,
     fetcher,
   );
+
   const { data: summary } = useSWR<AnyRecord>(
     section === "payments"
       ? "/api/v1/payments/summary"
@@ -337,6 +367,7 @@ export function TransactionWorkspace({
         : null,
     fetcher,
   );
+
   const refreshApi = useApiRefresh();
   const router = useRouter();
 
@@ -344,21 +375,26 @@ export function TransactionWorkspace({
     if (section === "payments") return <PaymentEditor />;
     if (section === "expenses") return <ExpenseEditor />;
     if (section === "cash-book") return <CashEntryEditor />;
+
     return <TransactionEditor section={section} />;
   }
+
   if (
     operation === "edit" &&
     (section === "purchases" || section === "sales" || section === "quotations")
   ) {
     if (detailLoading) return <Loading label="Loading draft…" />;
-    if (detailError || !detailData)
+
+    if (detailError || !detailData) {
       return (
         <Failure
           message={detailError?.message ?? "Draft not found"}
           retry={() => refreshDetail()}
         />
       );
-    if (section === "purchases")
+    }
+
+    if (section === "purchases") {
       return (
         <TransactionEditor
           section={section}
@@ -366,7 +402,9 @@ export function TransactionWorkspace({
           initialItems={detailData.items}
         />
       );
-    if (section === "sales")
+    }
+
+    if (section === "sales") {
       return (
         <TransactionEditor
           section={section}
@@ -374,6 +412,8 @@ export function TransactionWorkspace({
           initialItems={detailData.items}
         />
       );
+    }
+
     return (
       <TransactionEditor
         section={section}
@@ -382,26 +422,34 @@ export function TransactionWorkspace({
       />
     );
   }
+
   if (operation === "edit" && section === "expenses") {
     if (detailLoading) return <Loading label="Loading expense…" />;
-    if (detailError || !detailData)
+
+    if (detailError || !detailData) {
       return (
         <Failure
           message={detailError?.message ?? "Expense not found"}
           retry={() => refreshDetail()}
         />
       );
+    }
+
     return <ExpenseEditor initial={detailData as Expense} />;
   }
+
   if (action) {
     if (detailLoading) return <Loading label="Loading transaction…" />;
-    if (detailError || !detailData)
+
+    if (detailError || !detailData) {
       return (
         <Failure
           message={detailError?.message ?? "Transaction not found"}
           retry={() => refreshDetail()}
         />
       );
+    }
+
     return (
       <TransactionDetail
         section={section}
@@ -409,19 +457,24 @@ export function TransactionWorkspace({
         onChanged={async (next) => {
           await refreshApi();
           await refreshDetail();
+
           if (next) router.push(next);
         }}
       />
     );
   }
+
   if (listLoading) return <Loading />;
-  if (listError || !listData)
+
+  if (listError || !listData) {
     return (
       <Failure
         message={listError?.message ?? "Could not load this section"}
         retry={() => refreshList()}
       />
     );
+  }
+
   return (
     <TransactionList
       section={section}
@@ -429,31 +482,216 @@ export function TransactionWorkspace({
       summary={summary}
       suppliers={suppliers?.items ?? []}
       patients={patients?.items ?? []}
+      salesFrom={salesFrom}
+      salesTo={salesTo}
+      paymentMethod={paymentMethod}
+      onSalesFromChange={setSalesFrom}
+      onSalesToChange={setSalesTo}
+      onPaymentMethodChange={setPaymentMethod}
     />
   );
 }
+// export function TransactionWorkspace({
+//   section,
+//   action,
+//   operation,
+// }: {
+//   section: PageSection;
+//   action?: string;
+//   operation?: string;
+// }) {
+//   const detailUrl =
+//     action && action !== "new" ? `/api/v1/${section}/${action}` : null;
+//   const {
+//     data: detailData,
+//     error: detailError,
+//     isLoading: detailLoading,
+//     mutate: refreshDetail,
+//   } = useSWR<AnyRecord>(detailUrl, fetcher);
+//   const listUrl = !action
+//     ? section === "cash-book"
+//       ? "/api/v1/cash-book"
+//       : `/api/v1/${section}?page=1&pageSize=100&sortBy=createdAt&sortOrder=desc`
+//     : null;
+//   const {
+//     data: listData,
+//     error: listError,
+//     isLoading: listLoading,
+//     mutate: refreshList,
+//   } = useSWR<AnyRecord>(listUrl, fetcher);
+//   const { data: suppliers } = useSWR<{ items: Supplier[] }>(
+//     section === "purchases" || section === "payments"
+//       ? "/api/v1/suppliers?page=1&pageSize=100"
+//       : null,
+//     fetcher,
+//   );
+//   // const { data: patients } = useSWR<{ items: Patient[] }>(
+//   //   section === "sales" || section === "quotations" || section === "payments"
+//   //     ? "/api/v1/patients?page=1&pageSize=100"
+//   //     : null,
+//   //   fetcher,
+//   // );
+//   const { data: patients } = useSWR<{ items: Patient[] }>(
+//     section === "sales"
+//       ? null // Sales will search patients by phone separately
+//       : section === "quotations" || section === "payments"
+//         ? "/api/v1/patients?page=1&pageSize=100"
+//         : null,
+//     fetcher,
+//   );
+//   const { data: summary } = useSWR<AnyRecord>(
+//     section === "payments"
+//       ? "/api/v1/payments/summary"
+//       : section === "expenses"
+//         ? "/api/v1/expenses/summary"
+//         : null,
+//     fetcher,
+//   );
+//   const refreshApi = useApiRefresh();
+//   const router = useRouter();
+//   function getTodayInIndia() {
+//     const parts = new Intl.DateTimeFormat("en-CA", {
+//       timeZone: "Asia/Kolkata",
+//       year: "numeric",
+//       month: "2-digit",
+//       day: "2-digit",
+//     }).formatToParts(new Date());
 
+//     const values = Object.fromEntries(
+//       parts.map((part) => [part.type, part.value]),
+//     );
+
+//     return `${values.year}-${values.month}-${values.day}`;
+//   }
+
+//   if (action === "new") {
+//     if (section === "payments") return <PaymentEditor />;
+//     if (section === "expenses") return <ExpenseEditor />;
+//     if (section === "cash-book") return <CashEntryEditor />;
+//     return <TransactionEditor section={section} />;
+//   }
+//   if (
+//     operation === "edit" &&
+//     (section === "purchases" || section === "sales" || section === "quotations")
+//   ) {
+//     if (detailLoading) return <Loading label="Loading draft…" />;
+//     if (detailError || !detailData)
+//       return (
+//         <Failure
+//           message={detailError?.message ?? "Draft not found"}
+//           retry={() => refreshDetail()}
+//         />
+//       );
+//     if (section === "purchases")
+//       return (
+//         <TransactionEditor
+//           section={section}
+//           initial={detailData.purchase}
+//           initialItems={detailData.items}
+//         />
+//       );
+//     if (section === "sales")
+//       return (
+//         <TransactionEditor
+//           section={section}
+//           initial={detailData.sale}
+//           initialItems={detailData.items}
+//         />
+//       );
+//     return (
+//       <TransactionEditor
+//         section={section}
+//         initial={detailData.quotation}
+//         initialItems={detailData.items}
+//       />
+//     );
+//   }
+//   if (operation === "edit" && section === "expenses") {
+//     if (detailLoading) return <Loading label="Loading expense…" />;
+//     if (detailError || !detailData)
+//       return (
+//         <Failure
+//           message={detailError?.message ?? "Expense not found"}
+//           retry={() => refreshDetail()}
+//         />
+//       );
+//     return <ExpenseEditor initial={detailData as Expense} />;
+//   }
+//   if (action) {
+//     if (detailLoading) return <Loading label="Loading transaction…" />;
+//     if (detailError || !detailData)
+//       return (
+//         <Failure
+//           message={detailError?.message ?? "Transaction not found"}
+//           retry={() => refreshDetail()}
+//         />
+//       );
+//     return (
+//       <TransactionDetail
+//         section={section}
+//         data={detailData}
+//         onChanged={async (next) => {
+//           await refreshApi();
+//           await refreshDetail();
+//           if (next) router.push(next);
+//         }}
+//       />
+//     );
+//   }
+//   if (listLoading) return <Loading />;
+//   if (listError || !listData)
+//     return (
+//       <Failure
+//         message={listError?.message ?? "Could not load this section"}
+//         retry={() => refreshList()}
+//       />
+//     );
+//   return (
+//     <TransactionList
+//       section={section}
+//       data={listData}
+//       summary={summary}
+//       suppliers={suppliers?.items ?? []}
+//       patients={patients?.items ?? []}
+//     />
+//   );
+// }
 function TransactionList({
   section,
   data,
   summary,
   suppliers,
   patients,
+  salesFrom,
+  salesTo,
+  paymentMethod,
+  onSalesFromChange,
+  onSalesToChange,
+  onPaymentMethodChange,
 }: {
   section: PageSection;
   data: AnyRecord;
   summary?: AnyRecord;
   suppliers: Supplier[];
   patients: Patient[];
+  salesFrom: string;
+  salesTo: string;
+  paymentMethod: string;
+  onSalesFromChange: (value: string) => void;
+  onSalesToChange: (value: string) => void;
+  onPaymentMethodChange: (value: string) => void;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
+
   const title = titleFor[section];
   const rows: AnyRecord[] = data.items ?? [];
+
   const visible = useMemo(
     () =>
       rows.filter((row) => {
         const term = query.trim().toLocaleLowerCase("en-IN");
+
         const matches =
           !term ||
           Object.values(row).some((value) =>
@@ -461,6 +699,7 @@ function TransactionList({
               .toLocaleLowerCase("en-IN")
               .includes(term),
           );
+
         return (
           matches &&
           (filter === "all" ||
@@ -469,6 +708,7 @@ function TransactionList({
       }),
     [rows, query, filter],
   );
+
   const filterOptions =
     section === "cash-book"
       ? ["inflow", "outflow"]
@@ -479,7 +719,9 @@ function TransactionList({
           : section === "sales"
             ? ["draft", "completed", "partially_paid", "cancelled", "reversed"]
             : [];
+
   const href = section === "cash-book" ? "/cash-book/new" : `/${section}/new`;
+
   const actionLabel =
     section === "sales"
       ? "New sale"
@@ -492,66 +734,90 @@ function TransactionList({
             : section === "expenses"
               ? "Add expense"
               : "Add cash entry";
+
+  const salesSummary = data.summary ?? {};
+
   const summaryCards =
-    section === "payments"
+    section === "sales"
       ? [
           [
-            "Received this month",
-            money(summary?.receivedPaise ?? 0),
+            "Total sales",
+            money(salesSummary.totalSalesPaise ?? 0),
             ArrowDownRight,
           ],
-          ["Paid to suppliers", money(summary?.paidPaise ?? 0), ArrowUpRight],
           [
-            "Payment records",
-            String(summary?.paymentCount ?? rows.length),
+            "Total credit",
+            money(salesSummary.totalCreditPaise ?? 0),
+            ArrowUpRight,
+          ],
+          [
+            "Sales invoices",
+            String(salesSummary.count ?? rows.length),
             FileText,
           ],
         ]
-      : section === "expenses"
+      : section === "payments"
         ? [
             [
-              "Expenses this month",
-              money(summary?.totalPaise ?? 0),
-              ArrowUpRight,
+              "Received this month",
+              money(summary?.receivedPaise ?? 0),
+              ArrowDownRight,
             ],
+            ["Paid to suppliers", money(summary?.paidPaise ?? 0), ArrowUpRight],
             [
-              "Recorded entries",
-              String(summary?.count ?? rows.length),
+              "Payment records",
+              String(summary?.paymentCount ?? rows.length),
               FileText,
             ],
-            [
-              "Categories used",
-              String(Object.keys(summary?.categoryTotalsPaise ?? {}).length),
-              Check,
-            ],
           ]
-        : section === "cash-book"
+        : section === "expenses"
           ? [
               [
-                "Cash received",
-                money(data.summary?.inflowPaise ?? 0),
-                ArrowDownRight,
-              ],
-              [
-                "Cash paid",
-                money(data.summary?.outflowPaise ?? 0),
+                "Expenses this month",
+                money(summary?.totalPaise ?? 0),
                 ArrowUpRight,
               ],
               [
-                "Closing balance",
-                money(data.summary?.closingBalancePaise ?? 0),
+                "Recorded entries",
+                String(summary?.count ?? rows.length),
+                FileText,
+              ],
+              [
+                "Categories used",
+                String(Object.keys(summary?.categoryTotalsPaise ?? {}).length),
                 Check,
               ],
             ]
-          : [];
+          : section === "cash-book"
+            ? [
+                [
+                  "Cash received",
+                  money(data.summary?.inflowPaise ?? 0),
+                  ArrowDownRight,
+                ],
+                [
+                  "Cash paid",
+                  money(data.summary?.outflowPaise ?? 0),
+                  ArrowUpRight,
+                ],
+                [
+                  "Closing balance",
+                  money(data.summary?.closingBalancePaise ?? 0),
+                  Check,
+                ],
+              ]
+            : [];
+
   return (
     <>
       <PageHeading
         title={title}
         description={
-          section === "cash-book"
-            ? "Review receipts, payments, expenses, and manual cash adjustments."
-            : `Manage ${title.toLocaleLowerCase("en-IN")} using recorded transaction history.`
+          section === "sales"
+            ? "Review sales, customer payments, and outstanding credit."
+            : section === "cash-book"
+              ? "Review receipts, payments, expenses, and manual cash adjustments."
+              : `Manage ${title.toLocaleLowerCase("en-IN")} using recorded transaction history.`
         }
         action={
           <Link className={primary} href={href}>
@@ -560,10 +826,12 @@ function TransactionList({
           </Link>
         }
       />
+
       {summaryCards.length > 0 && (
         <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {summaryCards.map(([label, value, Icon]) => {
             const StatIcon = Icon as typeof Check;
+
             return (
               <section key={label as string} className={`${surface} p-4`}>
                 <div className="flex items-start justify-between">
@@ -571,10 +839,12 @@ function TransactionList({
                     <p className="text-[11px] text-[#81908a]">
                       {label as string}
                     </p>
+
                     <p className="mt-2 text-lg font-semibold text-[#26352f]">
                       {value as string}
                     </p>
                   </div>
+
                   <span className="rounded-xl bg-[#e9f5ef] p-2 text-[#218064]">
                     <StatIcon size={16} />
                   </span>
@@ -584,36 +854,97 @@ function TransactionList({
           })}
         </div>
       )}
+
       <section className={surface}>
-        <div className="flex flex-col gap-3 p-4 md:flex-row md:items-center">
-          <label className="flex h-9 flex-1 items-center gap-2 rounded-lg border border-[#e4ebe7] px-3">
-            <Search size={15} className="text-[#95a19b]" />
-            <input
-              className="min-w-0 flex-1 bg-transparent text-xs outline-none"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={`Search ${title.toLocaleLowerCase("en-IN")}…`}
-            />
-          </label>
-          <select
-            className={`${select} w-auto min-w-[150px]`}
-            value={filter}
-            onChange={(event) => setFilter(event.target.value)}
-            aria-label="Filter records by status"
-          >
-            <option value="all">All records</option>
-            {filterOptions.map((status) => (
-              <option key={status} value={status}>
-                {status.replaceAll("_", " ")}
-              </option>
-            ))}
-          </select>
+        <div className="flex flex-col gap-3 p-4">
+          {section === "sales" && (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[11px] font-medium text-[#81908a]">
+                  From date
+                </span>
+
+                <input
+                  type="date"
+                  className={input}
+                  value={salesFrom}
+                  max={salesTo}
+                  onChange={(event) => onSalesFromChange(event.target.value)}
+                />
+              </label>
+
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[11px] font-medium text-[#81908a]">
+                  To date
+                </span>
+
+                <input
+                  type="date"
+                  className={input}
+                  value={salesTo}
+                  min={salesFrom}
+                  onChange={(event) => onSalesToChange(event.target.value)}
+                />
+              </label>
+
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[11px] font-medium text-[#81908a]">
+                  Payment method
+                </span>
+
+                <select
+                  className={select}
+                  value={paymentMethod}
+                  onChange={(event) =>
+                    onPaymentMethodChange(event.target.value)
+                  }
+                  aria-label="Filter sales by payment method"
+                >
+                  <option value="all">All methods</option>
+                  <option value="upi">UPI</option>
+                  <option value="cash">Cash</option>
+                  <option value="card">Card</option>
+                  <option value="credit">Credit</option>
+                </select>
+              </label>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <label className="flex h-9 flex-1 items-center gap-2 rounded-lg border border-[#e4ebe7] px-3">
+              <Search size={15} className="text-[#95a19b]" />
+
+              <input
+                className="min-w-0 flex-1 bg-transparent text-xs outline-none"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={`Search ${title.toLocaleLowerCase("en-IN")}…`}
+              />
+            </label>
+
+            <select
+              className={`${select} w-auto min-w-[150px]`}
+              value={filter}
+              onChange={(event) => setFilter(event.target.value)}
+              aria-label="Filter records by status"
+            >
+              <option value="all">All statuses</option>
+
+              {filterOptions.map((status) => (
+                <option key={status} value={status}>
+                  {status.replaceAll("_", " ")}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
+
         {visible.length === 0 ? (
           <div className="p-12 text-center">
             <p className="text-sm font-semibold text-[#43524c]">
               No matching records
             </p>
+
             <p className="mt-1 text-xs text-[#95a19c]">
               New records will appear here after they are saved.
             </p>
@@ -633,14 +964,226 @@ function TransactionList({
             </>
           </Table>
         )}
+
         <div className="border-t border-[#edf1ef] px-4 py-3 text-[10px] text-[#8d9993]">
-          {visible.length} of {rows.length} records · Monetary values are stored
-          in paise.
+          {visible.length} of {rows.length} records
+          {section === "sales"
+            ? " · Filtered by selected date and payment method"
+            : ""}
+          {" · Monetary values are stored in paise."}
         </div>
       </section>
     </>
   );
 }
+// function TransactionList({
+//   section,
+//   data,
+//   summary,
+//   suppliers,
+//   patients,
+// }: {
+//   section: PageSection;
+//   data: AnyRecord;
+//   summary?: AnyRecord;
+//   suppliers: Supplier[];
+//   patients: Patient[];
+// }) {
+//   const [query, setQuery] = useState("");
+//   const [filter, setFilter] = useState("all");
+//   const title = titleFor[section];
+//   const rows: AnyRecord[] = data.items ?? [];
+//   const visible = useMemo(
+//     () =>
+//       rows.filter((row) => {
+//         const term = query.trim().toLocaleLowerCase("en-IN");
+//         const matches =
+//           !term ||
+//           Object.values(row).some((value) =>
+//             String(value ?? "")
+//               .toLocaleLowerCase("en-IN")
+//               .includes(term),
+//           );
+//         return (
+//           matches &&
+//           (filter === "all" ||
+//             String(row.status ?? row.entryType ?? "").toLowerCase() === filter)
+//         );
+//       }),
+//     [rows, query, filter],
+//   );
+//   const filterOptions =
+//     section === "cash-book"
+//       ? ["inflow", "outflow"]
+//       : section === "quotations"
+//         ? ["draft", "sent", "accepted", "rejected", "expired", "converted"]
+//         : section === "purchases"
+//           ? ["draft", "received", "cancelled"]
+//           : section === "sales"
+//             ? ["draft", "completed", "partially_paid", "cancelled", "reversed"]
+//             : [];
+//   const href = section === "cash-book" ? "/cash-book/new" : `/${section}/new`;
+//   const actionLabel =
+//     section === "sales"
+//       ? "New sale"
+//       : section === "purchases"
+//         ? "New purchase"
+//         : section === "quotations"
+//           ? "New quotation"
+//           : section === "payments"
+//             ? "Record payment"
+//             : section === "expenses"
+//               ? "Add expense"
+//               : "Add cash entry";
+//   const summaryCards =
+//     section === "payments"
+//       ? [
+//           [
+//             "Received this month",
+//             money(summary?.receivedPaise ?? 0),
+//             ArrowDownRight,
+//           ],
+//           ["Paid to suppliers", money(summary?.paidPaise ?? 0), ArrowUpRight],
+//           [
+//             "Payment records",
+//             String(summary?.paymentCount ?? rows.length),
+//             FileText,
+//           ],
+//         ]
+//       : section === "expenses"
+//         ? [
+//             [
+//               "Expenses this month",
+//               money(summary?.totalPaise ?? 0),
+//               ArrowUpRight,
+//             ],
+//             [
+//               "Recorded entries",
+//               String(summary?.count ?? rows.length),
+//               FileText,
+//             ],
+//             [
+//               "Categories used",
+//               String(Object.keys(summary?.categoryTotalsPaise ?? {}).length),
+//               Check,
+//             ],
+//           ]
+//         : section === "cash-book"
+//           ? [
+//               [
+//                 "Cash received",
+//                 money(data.summary?.inflowPaise ?? 0),
+//                 ArrowDownRight,
+//               ],
+//               [
+//                 "Cash paid",
+//                 money(data.summary?.outflowPaise ?? 0),
+//                 ArrowUpRight,
+//               ],
+//               [
+//                 "Closing balance",
+//                 money(data.summary?.closingBalancePaise ?? 0),
+//                 Check,
+//               ],
+//             ]
+//           : [];
+//   return (
+//     <>
+//       <PageHeading
+//         title={title}
+//         description={
+//           section === "cash-book"
+//             ? "Review receipts, payments, expenses, and manual cash adjustments."
+//             : `Manage ${title.toLocaleLowerCase("en-IN")} using recorded transaction history.`
+//         }
+//         action={
+//           <Link className={primary} href={href}>
+//             <Plus size={15} />
+//             {actionLabel}
+//           </Link>
+//         }
+//       />
+//       {summaryCards.length > 0 && (
+//         <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+//           {summaryCards.map(([label, value, Icon]) => {
+//             const StatIcon = Icon as typeof Check;
+//             return (
+//               <section key={label as string} className={`${surface} p-4`}>
+//                 <div className="flex items-start justify-between">
+//                   <div>
+//                     <p className="text-[11px] text-[#81908a]">
+//                       {label as string}
+//                     </p>
+//                     <p className="mt-2 text-lg font-semibold text-[#26352f]">
+//                       {value as string}
+//                     </p>
+//                   </div>
+//                   <span className="rounded-xl bg-[#e9f5ef] p-2 text-[#218064]">
+//                     <StatIcon size={16} />
+//                   </span>
+//                 </div>
+//               </section>
+//             );
+//           })}
+//         </div>
+//       )}
+//       <section className={surface}>
+//         <div className="flex flex-col gap-3 p-4 md:flex-row md:items-center">
+//           <label className="flex h-9 flex-1 items-center gap-2 rounded-lg border border-[#e4ebe7] px-3">
+//             <Search size={15} className="text-[#95a19b]" />
+//             <input
+//               className="min-w-0 flex-1 bg-transparent text-xs outline-none"
+//               value={query}
+//               onChange={(event) => setQuery(event.target.value)}
+//               placeholder={`Search ${title.toLocaleLowerCase("en-IN")}…`}
+//             />
+//           </label>
+//           <select
+//             className={`${select} w-auto min-w-[150px]`}
+//             value={filter}
+//             onChange={(event) => setFilter(event.target.value)}
+//             aria-label="Filter records by status"
+//           >
+//             <option value="all">All records</option>
+//             {filterOptions.map((status) => (
+//               <option key={status} value={status}>
+//                 {status.replaceAll("_", " ")}
+//               </option>
+//             ))}
+//           </select>
+//         </div>
+//         {visible.length === 0 ? (
+//           <div className="p-12 text-center">
+//             <p className="text-sm font-semibold text-[#43524c]">
+//               No matching records
+//             </p>
+//             <p className="mt-1 text-xs text-[#95a19c]">
+//               New records will appear here after they are saved.
+//             </p>
+//           </div>
+//         ) : (
+//           <Table headings={columnsFor(section)}>
+//             <>
+//               {visible.map((row) => (
+//                 <TransactionRow
+//                   key={row.id}
+//                   section={section}
+//                   row={row}
+//                   suppliers={suppliers}
+//                   patients={patients}
+//                 />
+//               ))}
+//             </>
+//           </Table>
+//         )}
+//         <div className="border-t border-[#edf1ef] px-4 py-3 text-[10px] text-[#8d9993]">
+//           {visible.length} of {rows.length} records · Monetary values are stored
+//           in paise.
+//         </div>
+//       </section>
+//     </>
+//   );
+// }
 function columnsFor(section: PageSection) {
   if (section === "purchases")
     return [
@@ -653,13 +1196,24 @@ function columnsFor(section: PageSection) {
       "Status",
     ];
   if (section === "sales")
+    // return [
+    //   "Invoice",
+    //   "Customer",
+    //   "Date",
+    //   "Total",
+    //   "Paid",
+    //   "Outstanding",
+    //   "Status",
+    // ];
     return [
       "Invoice",
       "Customer",
+      "Phone",
       "Date",
       "Total",
       "Paid",
-      "Outstanding",
+      "Credit",
+      "Payment method",
       "Status",
     ];
   if (section === "quotations")
@@ -738,7 +1292,7 @@ function TransactionRow({
           </td>
         </>
       )}
-      {section === "sales" && (
+      {/* {section === "sales" && (
         <>
           <td className="px-4 py-3 text-[11px] font-semibold text-[#18765e]">
             <Link href={recordUrl}>{row.invoiceNumber}</Link>
@@ -754,6 +1308,59 @@ function TransactionRow({
           <td className="px-4 py-3 text-[11px]">
             {money(row.totalPaise - row.paidPaise)}
           </td>
+          <td className="px-4 py-3">
+            <Status value={row.status} />
+          </td>
+        </>
+      )} */}
+      {section === "sales" && (
+        <>
+          {/* Invoice */}
+          <td className="px-4 py-3 text-[11px] font-semibold text-[#18765e]">
+            <Link href={recordUrl}>{row.invoiceNumber}</Link>
+          </td>
+
+          {/* Customer */}
+          <td className="px-4 py-3 text-[11px] text-[#68766f]">
+            {row.customerName ?? "Walk-in customer"}
+          </td>
+
+          {/* Phone */}
+          <td className="px-4 py-3 text-[11px] text-[#68766f]">
+            {row.customerPhone || "—"}
+          </td>
+
+          {/* Date */}
+          <td className="px-4 py-3 text-[11px] text-[#68766f]">
+            {dateLabel(row.soldOn)}
+          </td>
+
+          {/* Total */}
+          <td className="px-4 py-3 text-[11px] font-semibold">
+            {money(row.totalPaise)}
+          </td>
+
+          {/* Paid */}
+          <td className="px-4 py-3 text-[11px]">{money(row.paidPaise)}</td>
+
+          {/* Credit */}
+          <td className="px-4 py-3 text-[11px] font-semibold text-amber-700">
+            {money(
+              row.outstandingPaise ??
+                Math.max(0, row.totalPaise - row.paidPaise),
+            )}
+          </td>
+
+          {/* Payment method */}
+          <td className="px-4 py-3 text-[11px] capitalize">
+            {Array.isArray(row.paymentMethods) && row.paymentMethods.length > 0
+              ? row.paymentMethods
+                  .map((method: string) => method.replaceAll("_", " "))
+                  .join(", ")
+              : "—"}
+          </td>
+
+          {/* Status */}
           <td className="px-4 py-3">
             <Status value={row.status} />
           </td>
@@ -3355,9 +3962,7 @@ function PaymentDialog(props: {
   );
 
   const { data: purchases } = useSWR<{ items: Purchase[] }>(
-    type === "purchase"
-      ? "/api/v1/purchases?page=1&pageSize=100"
-      : null,
+    type === "purchase" ? "/api/v1/purchases?page=1&pageSize=100" : null,
     fetcher,
   );
 
@@ -3440,12 +4045,7 @@ function PaymentDialog(props: {
             const keyState = newKey(keyRef.current, payload);
             keyRef.current = keyState;
 
-            await send(
-              "/api/v1/payments",
-              "POST",
-              payload,
-              keyState.key,
-            );
+            await send("/api/v1/payments", "POST", payload, keyState.key);
 
             await props.onSaved();
           } catch (requestError) {
@@ -3479,9 +4079,7 @@ function PaymentDialog(props: {
 
         {isCustomerPayment ? (
           <div className="rounded-lg border border-[#dcebe3] bg-[#f7fbf8] p-3">
-            <p className="text-[10px] font-medium text-[#84918b]">
-              Customer
-            </p>
+            <p className="text-[10px] font-medium text-[#84918b]">Customer</p>
             <p className="mt-1 text-sm font-semibold text-[#26352f]">
               {props.patients?.find(
                 (patient) => patient.id === props.presetPatientId,
@@ -3519,8 +4117,7 @@ function PaymentDialog(props: {
                     {entry.invoiceNumber} ·{" "}
                     {type === "sale"
                       ? (props.patients?.find(
-                          (party) =>
-                            party.id === (entry as Sale).patientId,
+                          (party) => party.id === (entry as Sale).patientId,
                         )?.name ?? "Walk-in")
                       : (props.suppliers?.find(
                           (party) =>
@@ -3534,9 +4131,7 @@ function PaymentDialog(props: {
 
             <div className="rounded-lg bg-[#f3f8f5] p-3 text-[10px] text-[#708078]">
               Outstanding balance:{" "}
-              <strong className="text-[#405149]">
-                {money(outstanding)}
-              </strong>
+              <strong className="text-[#405149]">{money(outstanding)}</strong>
             </div>
           </>
         )}
@@ -3589,11 +4184,7 @@ function PaymentDialog(props: {
 
         <div className="mt-1 flex justify-end gap-2">
           {!props.routeMode && (
-            <button
-              type="button"
-              className={secondary}
-              onClick={props.onClose}
-            >
+            <button type="button" className={secondary} onClick={props.onClose}>
               Cancel
             </button>
           )}
@@ -3602,9 +4193,7 @@ function PaymentDialog(props: {
             disabled={
               pending ||
               outstanding <= 0 ||
-              (isCustomerPayment
-                ? !props.presetPatientId
-                : !transactionId)
+              (isCustomerPayment ? !props.presetPatientId : !transactionId)
             }
             className={primary}
             type="submit"
@@ -3621,15 +4210,11 @@ function PaymentDialog(props: {
   );
 
   return props.routeMode ? (
-    <section className={`${surface} max-w-2xl p-4 md:p-6`}>
-      {form}
-    </section>
+    <section className={`${surface} max-w-2xl p-4 md:p-6`}>{form}</section>
   ) : (
     <Modal
       title={
-        isCustomerPayment
-          ? "Record customer credit payment"
-          : "Record payment"
+        isCustomerPayment ? "Record customer credit payment" : "Record payment"
       }
       onClose={props.onClose}
     >
@@ -3637,209 +4222,3 @@ function PaymentDialog(props: {
     </Modal>
   );
 }
-
-// function PaymentDialog(props: {
-//   transactionType?: "sale" | "purchase";
-//   presetTransactionId?: string;
-//   suppliers?: Supplier[];
-//   patients?: Patient[];
-//   onClose: () => void;
-//   onSaved: () => void | Promise<void>;
-//   routeMode?: boolean;
-//   presetPatientId?: string;
-// }) {
-//   const [type, setType] = useState<"sale" | "purchase">(
-//     props.transactionType ?? "sale",
-//   );
-//   const [transactionId, setTransactionId] = useState(
-//     props.presetTransactionId ?? "",
-//   );
-//   const [amount, setAmount] = useState("");
-//   const [method, setMethod] = useState<(typeof methods)[number]>("cash");
-//   const [reference, setReference] = useState("");
-//   const [error, setError] = useState("");
-//   const [pending, setPending] = useState(false);
-//   const keyRef = useRef<{ signature: string; key: string } | null>(null);
-//   // const { data: sales } = useSWR<{ items: Sale[] }>(
-//   //   type === "sale" ? "/api/v1/sales?page=1&pageSize=100" : null,
-//   //   fetcher,
-//   // );
-//   const { data: sales } = useSWR<{ items: Sale[] }>(
-//     type === "sale"
-//       ? `/api/v1/sales?page=1&pageSize=100${
-//           props.presetPatientId
-//             ? `&patientId=${encodeURIComponent(props.presetPatientId)}`
-//             : ""
-//         }`
-//       : null,
-//     fetcher,
-//   );
-//   const { data: purchases } = useSWR<{ items: Purchase[] }>(
-//     type === "purchase" ? "/api/v1/purchases?page=1&pageSize=100" : null,
-//     fetcher,
-//   );
-//   const eligible =
-//     type === "sale"
-//       ? (sales?.items ?? []).filter(
-//           (item) =>
-//             ["completed", "partially_paid"].includes(item.status) &&
-//             item.totalPaise > item.paidPaise,
-//         )
-//       : (purchases?.items ?? []).filter(
-//           (item) =>
-//             item.status === "received" && item.totalPaise > item.paidPaise,
-//         );
-//   const selected = eligible.find((item) => item.id === transactionId);
-//   const outstanding = selected ? selected.totalPaise - selected.paidPaise : 0;
-//   const form = (
-//     <>
-//       <Notice error={error} />
-//       <form
-//         className="flex flex-col gap-3"
-//         onSubmit={async (event) => {
-//           event.preventDefault();
-//           setPending(true);
-//           setError("");
-//           // const payload = {
-//           //   transactionType: type,
-//           //   transactionId,
-//           //   amountPaise: rupeesToPaise(amount),
-//           //   method,
-//           //   reference: reference.trim(),
-//           //   paidOn: today(),
-//           // };
-//           const payload = {
-//             transactionType: type,
-//             transactionId,
-//             amountPaise: rupeesToPaise(amount),
-//             method,
-//             reference: reference.trim() || "N/A",
-//             paidOn: today(),
-//           };
-//           try {
-//             const keyState = newKey(keyRef.current, payload);
-//             keyRef.current = keyState;
-//             await send("/api/v1/payments", "POST", payload, keyState.key);
-//             await props.onSaved();
-//           } catch (requestError) {
-//             setError(
-//               requestError instanceof Error
-//                 ? requestError.message
-//                 : "Could not record payment",
-//             );
-//           } finally {
-//             setPending(false);
-//           }
-//         }}
-//       >
-//         {!props.transactionType && (
-//           <Field label="Payment direction">
-//             <select
-//               className={select}
-//               value={type}
-//               onChange={(event) => {
-//                 setType(event.target.value as typeof type);
-//                 setTransactionId("");
-//               }}
-//             >
-//               <option value="sale">Received from customer</option>
-//               <option value="purchase">Paid to supplier</option>
-//             </select>
-//           </Field>
-//         )}
-//         <Field label={type === "sale" ? "Invoice" : "Purchase"}>
-//           <select
-//             required
-//             disabled={Boolean(props.presetTransactionId)}
-//             className={select}
-//             value={transactionId}
-//             onChange={(event) => setTransactionId(event.target.value)}
-//           >
-//             <option value="">Select an outstanding transaction</option>
-//             {eligible.map((entry) => (
-//               <option key={entry.id} value={entry.id}>
-//                 {entry.invoiceNumber} ·{" "}
-//                 {type === "sale"
-//                   ? (props.patients?.find(
-//                       (party) => party.id === (entry as Sale).patientId,
-//                     )?.name ?? "Walk-in")
-//                   : (props.suppliers?.find(
-//                       (party) => party.id === (entry as Purchase).supplierId,
-//                     )?.name ?? "Supplier")}{" "}
-//                 · due {money(entry.totalPaise - entry.paidPaise)}
-//               </option>
-//             ))}
-//           </select>
-//         </Field>
-//         <div className="rounded-lg bg-[#f3f8f5] p-3 text-[10px] text-[#708078]">
-//           Outstanding balance:{" "}
-//           <strong className="text-[#405149]">{money(outstanding)}</strong>
-//         </div>
-//         <Field label="Amount (₹)">
-//           <input
-//             required
-//             min="0.01"
-//             step="0.01"
-//             max={paiseToRupees(outstanding)}
-//             type="number"
-//             className={input}
-//             value={amount}
-//             onChange={(event) => setAmount(event.target.value)}
-//           />
-//         </Field>
-//         <Field label="Method">
-//           <select
-//             className={select}
-//             value={method}
-//             onChange={(event) =>
-//               setMethod(event.target.value as (typeof methods)[number])
-//             }
-//           >
-//             {methods.map((option) => (
-//               <option key={option} value={option}>
-//                 {option.replaceAll("_", " ")}
-//               </option>
-//             ))}
-//           </select>
-//         </Field>
-//         {/* <Field label="Reference number">
-//           <input
-//             className={input}
-//             value={reference}
-//             onChange={(event) => setReference(event.target.value)}
-//             placeholder="UPI / card / bank reference"
-//           />
-//         </Field> */}
-//         <Field label="Reference number (optional)">
-//           <input
-//             className={input}
-//             value={reference}
-//             onChange={(event) => setReference(event.target.value)}
-//             placeholder="UPI / card / bank reference"
-//           />
-//         </Field>
-//         <div className="mt-1 flex justify-end gap-2">
-//           {!props.routeMode && (
-//             <button type="button" className={secondary} onClick={props.onClose}>
-//               Cancel
-//             </button>
-//           )}
-//           <button
-//             disabled={pending || !transactionId}
-//             className={primary}
-//             type="submit"
-//           >
-//             {pending ? "Recording…" : "Record payment"}
-//           </button>
-//         </div>
-//       </form>
-//     </>
-//   );
-//   return props.routeMode ? (
-//     <section className={`${surface} max-w-2xl p-4 md:p-6`}>{form}</section>
-//   ) : (
-//     <Modal title="Record payment" onClose={props.onClose}>
-//       {form}
-//     </Modal>
-//   );
-// }

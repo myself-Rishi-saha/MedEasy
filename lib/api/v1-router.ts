@@ -1,6 +1,5 @@
-
-
 import { z } from "zod";
+import { saleSchema, patientSchema, paymentSchema } from "@/lib/domain/schemas";
 import {
   ApiError,
   errorResponse,
@@ -74,6 +73,16 @@ import {
 } from "@/lib/services/transaction-workflows";
 
 export type V1RouteContext = { params: Promise<{ path: string[] }> };
+type SaleRecord = z.infer<typeof saleSchema>;
+type PatientRecord = z.infer<typeof patientSchema>;
+type PaymentRecord = z.infer<typeof paymentSchema>;
+
+type SalesRegisterRecord = SaleRecord & {
+  customerName: string;
+  customerPhone: string;
+  outstandingPaise: number;
+  paymentMethods: NonNullable<SaleRecord["settlementMethod"]>[];
+};
 
 const resources = {
   medicines: { collection: "medicines", group: "catalog", prefix: "med" },
@@ -175,7 +184,7 @@ const fieldMap: Record<string, string[]> = {
   "stock-movements": ["sourceId", "batchId", "medicineId"],
   "stock-adjustments": ["adjustmentNumber", "reason"],
   purchases: ["invoiceNumber", "supplierInvoiceNumber"],
-  sales: ["invoiceNumber"],
+  sales: ["invoiceNumber", "customerName", "customerPhone"],
   quotations: ["quotationNumber"],
   payments: ["reference"],
   expenses: ["description", "reference"],
@@ -287,7 +296,6 @@ function normalizePhone(value: string) {
   return digits;
 }
 
-
 function valuesMatch(
   record: Record<string, unknown>,
   candidate: Record<string, unknown>,
@@ -376,6 +384,166 @@ function createCsv(headers: string[], rows: unknown[][]): string {
   ].join("\r\n");
 }
 
+async function listSales(search: URLSearchParams) {
+  const [sales, patients, payments] = await Promise.all([
+    jsonStore.read<SaleRecord[]>("sales"),
+    jsonStore.read<PatientRecord[]>("patients"),
+    jsonStore.read<PaymentRecord[]>("payments"),
+  ]);
+
+  const from = search.get("from");
+  const to = search.get("to");
+  const method = (search.get("paymentMethod") ?? "all").toLowerCase();
+
+  // Validate date filters.
+  if (from && !isValidDateOnly(from)) {
+    throw new ApiError(
+      422,
+      "VALIDATION_ERROR",
+      "Invalid from date. Use YYYY-MM-DD.",
+    );
+  }
+
+  if (to && !isValidDateOnly(to)) {
+    throw new ApiError(
+      422,
+      "VALIDATION_ERROR",
+      "Invalid to date. Use YYYY-MM-DD.",
+    );
+  }
+
+  if (from && to && from > to) {
+    throw new ApiError(
+      422,
+      "VALIDATION_ERROR",
+      "From date cannot be after to date.",
+    );
+  }
+
+  if (!["all", "cash", "upi", "card", "credit"].includes(method)) {
+    throw new ApiError(422, "VALIDATION_ERROR", "Unsupported payment method.");
+  }
+
+  // Map patients by ID for customer name and phone.
+  const patientMap = new Map(
+    patients.map((patient) => [String(patient.id), patient]),
+  );
+
+  // Group completed incoming payments by sale ID.
+  const paymentsBySale = new Map<string, PaymentRecord[]>();
+
+  for (const payment of payments) {
+    if (
+      payment.direction !== "received" ||
+      payment.transactionType !== "sale" ||
+      payment.status !== "completed"
+    ) {
+      continue;
+    }
+
+    const saleId = String(payment.transactionId);
+    const existing = paymentsBySale.get(saleId) ?? [];
+
+    existing.push(payment);
+    paymentsBySale.set(saleId, existing);
+  }
+
+  // Only completed and partially paid invoices belong in the sales register.
+  const eligibleSales = sales.filter((sale) =>
+    ["completed", "partially_paid"].includes(String(sale.status)),
+  );
+
+const enrichedSales: SalesRegisterRecord[] = eligibleSales.map((sale) => {
+  const patient = sale.patientId
+    ? patientMap.get(sale.patientId)
+    : undefined;
+
+  const salePayments = paymentsBySale.get(sale.id) ?? [];
+
+  const totalPaise = sale.totalPaise;
+  const paidPaise = sale.paidPaise;
+  const outstandingPaise = Math.max(0, totalPaise - paidPaise);
+
+const paymentMethods = [
+  ...new Set(
+    [
+      sale.settlementMethod,
+      ...salePayments.map((payment) => payment.method),
+    ].filter(
+      (value): value is NonNullable<SaleRecord["settlementMethod"]> =>
+        value !== undefined,
+    ),
+  ),
+];
+
+  return {
+    ...sale,
+    customerName: patient?.name ?? "Walk-in customer",
+    customerPhone: patient?.phone ?? "",
+    totalPaise,
+    paidPaise,
+    outstandingPaise,
+    paymentMethods,
+  };
+});
+
+  // Apply date and payment-method filters.
+const filteredSales: SalesRegisterRecord[] = enrichedSales.filter((sale) => {
+  const saleDate = sale.soldOn;
+
+  if (from && saleDate < from) return false;
+  if (to && saleDate > to) return false;
+
+  if (method === "credit") {
+    return sale.outstandingPaise > 0;
+  }
+
+  if (method !== "all") {
+    return sale.paymentMethods.includes(method);
+  }
+
+  return true;
+});
+
+  // Calculate summary from the selected date and payment filters.
+  const summary = filteredSales.reduce(
+    (acc, sale) => {
+      acc.totalSalesPaise += sale.totalPaise;
+      acc.totalPaidPaise += sale.paidPaise;
+      acc.totalCreditPaise += sale.outstandingPaise;
+      acc.count += 1;
+
+      return acc;
+    },
+    {
+      totalSalesPaise: 0,
+      totalPaidPaise: 0,
+      totalCreditPaise: 0,
+      count: 0,
+    },
+  );
+
+  // Apply search, sorting and pagination.
+  const result = await listRecords(
+    {
+      list: async () => filteredSales,
+    },
+    {
+      q: search.get("q") ?? undefined,
+      page: queryNumber(search.get("page"), 1),
+      pageSize: queryNumber(search.get("pageSize"), 20),
+      sortBy: search.get("sortBy") ?? "soldOn",
+      sortOrder: (search.get("sortOrder") ?? "desc") as "asc" | "desc",
+      filters: {},
+    },
+  );
+
+  return {
+    ...result,
+    summary,
+  };
+}
+
 async function listResource(resource: ResourceName, search: URLSearchParams) {
   const repository = new JsonRepository<
     Record<string, unknown> & { id: string }
@@ -440,17 +608,11 @@ async function exportMedicines() {
   ]);
 
   const categoryMap = new Map(
-    categories.map((item) => [
-      String(item.id),
-      String(item.name ?? ""),
-    ]),
+    categories.map((item) => [String(item.id), String(item.name ?? "")]),
   );
 
   const unitMap = new Map(
-    units.map((item) => [
-      String(item.id),
-      String(item.name ?? ""),
-    ]),
+    units.map((item) => [String(item.id), String(item.name ?? "")]),
   );
 
   const items = medicines.map((medicine) => ({
@@ -470,10 +632,7 @@ async function exportMedicines() {
     status: String(medicine.status ?? "active"),
   }));
 
-  return successResponse(
-    { items },
-    "Medicines exported successfully",
-  );
+  return successResponse({ items }, "Medicines exported successfully");
 }
 
 // async function exportMedicinesCsv() {
@@ -656,14 +815,18 @@ async function importMedicines(request: Request) {
 
   const categoryByName = new Map(
     categories.map((item) => [
-      String(item.name ?? "").trim().toLowerCase(),
+      String(item.name ?? "")
+        .trim()
+        .toLowerCase(),
       String(item.id),
     ]),
   );
 
   const unitByName = new Map(
     units.map((item) => [
-      String(item.name ?? "").trim().toLowerCase(),
+      String(item.name ?? "")
+        .trim()
+        .toLowerCase(),
       String(item.id),
     ]),
   );
@@ -682,8 +845,7 @@ async function importMedicines(request: Request) {
     const row = body.rows[index];
 
     try {
-      const getText = (key: string) =>
-        String(row[key] ?? "").trim();
+      const getText = (key: string) => String(row[key] ?? "").trim();
 
       const getNumber = (key: string, fallback = 0) => {
         const value = row[key];
@@ -718,29 +880,22 @@ async function importMedicines(request: Request) {
       const categoryValue = getText("category");
       const unitValue = getText("unit");
 
-      const categoryId =
-        categories.some((item) => item.id === categoryValue)
-          ? categoryValue
-          : categoryByName.get(categoryValue.toLowerCase());
+      const categoryId = categories.some((item) => item.id === categoryValue)
+        ? categoryValue
+        : categoryByName.get(categoryValue.toLowerCase());
 
-      const unitId =
-        units.some((item) => item.id === unitValue)
-          ? unitValue
-          : unitByName.get(unitValue.toLowerCase());
+      const unitId = units.some((item) => item.id === unitValue)
+        ? unitValue
+        : unitByName.get(unitValue.toLowerCase());
 
       if (!categoryId)
         throw new Error(`Category "${categoryValue}" was not found`);
 
-      if (!unitId)
-        throw new Error(`Unit "${unitValue}" was not found`);
+      if (!unitId) throw new Error(`Unit "${unitValue}" was not found`);
 
-      const purchasePricePaise = Math.round(
-        getNumber("purchasePrice") * 100,
-      );
+      const purchasePricePaise = Math.round(getNumber("purchasePrice") * 100);
 
-      const sellingPricePaise = Math.round(
-        getNumber("sellingPrice") * 100,
-      );
+      const sellingPricePaise = Math.round(getNumber("sellingPrice") * 100);
 
       // CSV GST values are percentages: 5 means 5%.
       const gstRateBps = Math.round(getNumber("gstRate") * 100);
@@ -791,9 +946,7 @@ async function importMedicines(request: Request) {
     }
   }
 
-  const imported = results.filter(
-    (item) => item.status === "imported",
-  ).length;
+  const imported = results.filter((item) => item.status === "imported").length;
 
   const failed = results.length - imported;
 
@@ -1086,20 +1239,16 @@ async function handleGet(request: Request, path: string[], user: User) {
     );
 
   requireGroupPermission(user, resource, "GET");
-//   if (
-//   resource === "medicines" &&
-//   path.length === 1 &&
-//   search.get("format") === "csv"
-// ) {
-//   return exportMedicinesCsv();
-// }
-if (
-  resource === "medicines" &&
-  id === "export" &&
-  path.length === 2
-) {
-  return exportMedicines();
-}
+  //   if (
+  //   resource === "medicines" &&
+  //   path.length === 1 &&
+  //   search.get("format") === "csv"
+  // ) {
+  //   return exportMedicinesCsv();
+  // }
+  if (resource === "medicines" && id === "export" && path.length === 2) {
+    return exportMedicines();
+  }
   if (resource === "dashboard" && path.length === 1) {
     const range = search.get("range") ?? "week";
 
@@ -1193,13 +1342,36 @@ if (
   if (!isResourceName(resource))
     throw new ApiError(404, "NOT_FOUND", "Resource not found");
 
+  // const resourceName = resource;
+
+  // if (id)
+  //   return successResponse(
+  //     await readResource(resourceName, id),
+  //     "Record loaded",
+  //   );
+
+  // return successResponse(
+  //   await listResource(resourceName, search),
+  //   "Records loaded",
+  // );
+
+  if (!isResourceName(resource)) {
+    throw new ApiError(404, "NOT_FOUND", "Resource not found");
+  }
+
+  // Dedicated sales register.
+  if (resource === "sales" && !id) {
+    return successResponse(await listSales(search), "Sales loaded");
+  }
+
   const resourceName = resource;
 
-  if (id)
+  if (id) {
     return successResponse(
       await readResource(resourceName, id),
       "Record loaded",
     );
+  }
 
   return successResponse(
     await listResource(resourceName, search),
@@ -1213,13 +1385,9 @@ async function handlePost(request: Request, path: string[], user: User) {
   if (!resource) throw new ApiError(404, "NOT_FOUND", "Resource not found");
 
   requireGroupPermission(user, resource, "POST");
-  if (
-  resource === "medicines" &&
-  id === "import" &&
-  path.length === 2
-) {
-  return importMedicines(request);
-}
+  if (resource === "medicines" && id === "import" && path.length === 2) {
+    return importMedicines(request);
+  }
 
   if (resource === "stock-adjustments" && !id)
     return createStockAdjustmentRequest(request, user);
