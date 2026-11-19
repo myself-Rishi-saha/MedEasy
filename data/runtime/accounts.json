@@ -1,0 +1,10 @@
+[
+  {
+    "id": "acc_e6fabd20455344de96cecb93de9c4168",
+    "userId": "usr_001",
+    "email": "abc@gmail.com",
+    "passwordHash": "scrypt$kFoYZVMebXFPZs4f71g3Sw$dhBgr44mU2cAhZjh9OQM9L37U62AjEM-ZHRA2gCgh0TOt5xUBWGc_2sk-Eq9X3rmOdNtiBVPfOviwKl0JgBfxg",
+    "createdAt": "2026-11-14T13:38:02.487Z",
+    "updatedAt": "2026-11-15T14:31:09.738Z"
+  }
+]

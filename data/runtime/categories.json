@@ -1,0 +1,82 @@
+[
+  {
+    "id": "cat_001",
+    "createdAt": "2026-01-01T10:00:00.000Z",
+    "updatedAt": "2026-01-01T10:00:00.000Z",
+    "name": "Analgesics",
+    "description": "Fictional demo category: analgesics.",
+    "status": "active"
+  },
+  {
+    "id": "cat_002",
+    "createdAt": "2026-01-01T10:00:00.000Z",
+    "updatedAt": "2026-01-01T10:00:00.000Z",
+    "name": "Antibiotics",
+    "description": "Fictional demo category: antibiotics.",
+    "status": "active"
+  },
+  {
+    "id": "cat_003",
+    "createdAt": "2026-01-01T10:00:00.000Z",
+    "updatedAt": "2026-01-01T10:00:00.000Z",
+    "name": "Allergy care",
+    "description": "Fictional demo category: allergy care.",
+    "status": "active"
+  },
+  {
+    "id": "cat_004",
+    "createdAt": "2026-01-01T10:00:00.000Z",
+    "updatedAt": "2026-01-01T10:00:00.000Z",
+    "name": "Gastrointestinal",
+    "description": "Fictional demo category: gastrointestinal.",
+    "status": "active"
+  },
+  {
+    "id": "cat_005",
+    "createdAt": "2026-01-01T10:00:00.000Z",
+    "updatedAt": "2026-01-01T10:00:00.000Z",
+    "name": "Vitamins & supplements",
+    "description": "Fictional demo category: vitamins & supplements.",
+    "status": "active"
+  },
+  {
+    "id": "cat_006",
+    "createdAt": "2026-01-01T10:00:00.000Z",
+    "updatedAt": "2026-01-01T10:00:00.000Z",
+    "name": "Dermatology",
+    "description": "Fictional demo category: dermatology.",
+    "status": "active"
+  },
+  {
+    "id": "cat_007",
+    "createdAt": "2026-01-01T10:00:00.000Z",
+    "updatedAt": "2026-01-01T10:00:00.000Z",
+    "name": "Cardiac care",
+    "description": "Fictional demo category: cardiac care.",
+    "status": "active"
+  },
+  {
+    "id": "cat_008",
+    "createdAt": "2026-01-01T10:00:00.000Z",
+    "updatedAt": "2026-01-01T10:00:00.000Z",
+    "name": "Diabetes care",
+    "description": "Fictional demo category: diabetes care.",
+    "status": "active"
+  },
+  {
+    "id": "cat_009",
+    "createdAt": "2026-01-01T10:00:00.000Z",
+    "updatedAt": "2026-01-01T10:00:00.000Z",
+    "name": "First aid",
+    "description": "Fictional demo category: first aid.",
+    "status": "active"
+  },
+  {
+    "id": "cat_010",
+    "createdAt": "2026-01-01T10:00:00.000Z",
+    "updatedAt": "2026-01-01T10:00:00.000Z",
+    "name": "Respiratory care",
+    "description": "Fictional demo category: respiratory care.",
+    "status": "active"
+  }
+]

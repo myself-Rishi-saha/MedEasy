@@ -1,0 +1,32 @@
+[
+  {
+    "id": "usr_001",
+    "createdAt": "2026-01-01T10:00:00.000Z",
+    "updatedAt": "2026-11-19T09:12:13.865Z",
+    "name": "Aarav Patel",
+    "email": "abc@gmail.com",
+    "role": "admin",
+    "status": "active",
+    "lastLoginAt": "2026-11-19T09:12:13.865Z"
+  },
+  {
+    "id": "usr_002",
+    "createdAt": "2026-01-02T10:00:00.000Z",
+    "updatedAt": "2026-01-02T10:00:00.000Z",
+    "name": "Neha Kulkarni",
+    "email": "neha.pharmacist@example.test",
+    "role": "pharmacist",
+    "status": "active",
+    "lastLoginAt": "2026-10-30T08:00:00.000Z"
+  },
+  {
+    "id": "usr_003",
+    "createdAt": "2026-01-03T10:00:00.000Z",
+    "updatedAt": "2026-01-03T10:00:00.000Z",
+    "name": "Ravi Kumar",
+    "email": "ravi.cashier@example.test",
+    "role": "cashier",
+    "status": "active",
+    "lastLoginAt": "2026-10-29T19:00:00.000Z"
+  }
+]

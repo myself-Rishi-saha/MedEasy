@@ -1,0 +1,16 @@
+{
+  "id": "set_pharmacy",
+  "name": "Med Easy Demo Pharmacy",
+  "legalName": "Med Easy Fictional Healthcare LLP",
+  "phone": "+91 80000 10000",
+  "email": "hello@medeasy.example.test",
+  "address": "18 Sample Market Road",
+  "city": "Bengaluru",
+  "state": "Karnataka",
+  "pincode": "560001",
+  "gstin": "29AABCM1234F1Z5",
+  "currency": "INR",
+  "openingStockAsOf": "2026-01-01",
+  "createdAt": "2026-01-01T10:00:00.000Z",
+  "updatedAt": "2026-10-01T10:00:00.000Z"
+}

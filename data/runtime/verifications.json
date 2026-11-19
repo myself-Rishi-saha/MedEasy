@@ -1,0 +1,13 @@
+[
+  {
+    "id": "ver_b7be6b336b9b4ebda44e46f6cd98e2ec",
+    "userId": "usr_001",
+    "identifier": "abc@gmail.com",
+    "purpose": "password_reset",
+    "tokenHash": "f12be01d510e99d89e9fed0c0c8d61f942703b51b1fc0ebfa0dc3046da911cb5",
+    "expiresAt": "2026-11-15T14:43:49.696Z",
+    "consumedAt": "2026-11-15T14:31:09.738Z",
+    "createdAt": "2026-11-15T14:28:49.696Z",
+    "updatedAt": "2026-11-15T14:31:09.738Z"
+  }
+]

@@ -11,7 +11,6 @@ __v0_jsx-dev-runtime.ts
 .env*.local
 
 # Runtime JSON data is mutable and must not be committed
-/data/runtime/
 
 # Common ignores
 node_modules
