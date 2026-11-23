@@ -2,12 +2,12 @@
   {
     "id": "usr_001",
     "createdAt": "2026-01-01T10:00:00.000Z",
-    "updatedAt": "2026-11-19T09:12:13.865Z",
+    "updatedAt": "2026-11-23T15:26:22.341Z",
     "name": "Aarav Patel",
     "email": "abc@gmail.com",
     "role": "admin",
     "status": "active",
-    "lastLoginAt": "2026-11-19T09:12:13.865Z"
+    "lastLoginAt": "2026-11-23T15:26:22.341Z"
   },
   {
     "id": "usr_002",

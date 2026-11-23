@@ -1,10 +1,10 @@
 [
   {
-    "id": "acc_e6fabd20455344de96cecb93de9c4168",
+    "id": "acc_b2ddbdc567f24f88a1eb0c71b5a6e07a",
     "userId": "usr_001",
     "email": "abc@gmail.com",
-    "passwordHash": "scrypt$kFoYZVMebXFPZs4f71g3Sw$dhBgr44mU2cAhZjh9OQM9L37U62AjEM-ZHRA2gCgh0TOt5xUBWGc_2sk-Eq9X3rmOdNtiBVPfOviwKl0JgBfxg",
-    "createdAt": "2026-11-14T13:38:02.487Z",
-    "updatedAt": "2026-11-15T14:31:09.738Z"
+    "passwordHash": "scrypt$yy6nbXWHcXfJa6UIPnhyvw$hO1py8skpSV11gacEkT5FzvMEQgYUoZVR0JdHyvnDpjVro3erQdONPBc5vFJaMCM799SGKLoAv8U83CIyYXxmw",
+    "createdAt": "2026-11-23T15:25:59.724Z",
+    "updatedAt": "2026-11-23T15:25:59.724Z"
   }
 ]
