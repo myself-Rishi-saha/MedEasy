@@ -449,9 +449,18 @@ async function listSales(search: URLSearchParams) {
   }
 
   // Only completed and partially paid invoices belong in the sales register.
-  const eligibleSales = sales.filter((sale) =>
-    ["completed", "partially_paid"].includes(String(sale.status)),
+const patientId = search.get("patientId")?.trim();
+
+const eligibleSales = sales.filter((sale) => {
+  const isEligibleStatus = ["completed", "partially_paid"].includes(
+    String(sale.status),
   );
+
+  const matchesPatient =
+    !patientId || String(sale.patientId ?? "") === patientId;
+
+  return isEligibleStatus && matchesPatient;
+});
 
 const enrichedSales: SalesRegisterRecord[] = eligibleSales.map((sale) => {
   const patient = sale.patientId

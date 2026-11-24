@@ -3966,17 +3966,33 @@ function PaymentDialog(props: {
     fetcher,
   );
 
-  const eligible =
-    type === "sale"
-      ? (sales?.items ?? []).filter(
-          (item) =>
-            ["completed", "partially_paid"].includes(item.status) &&
-            item.totalPaise > item.paidPaise,
-        )
-      : (purchases?.items ?? []).filter(
-          (item) =>
-            item.status === "received" && item.totalPaise > item.paidPaise,
-        );
+  // const eligible =
+  //   type === "sale"
+  //     ? (sales?.items ?? []).filter(
+  //         (item) =>
+  //           ["completed", "partially_paid"].includes(item.status) &&
+  //           item.totalPaise > item.paidPaise,
+  //       )
+  //     : (purchases?.items ?? []).filter(
+  //         (item) =>
+  //           item.status === "received" && item.totalPaise > item.paidPaise,
+  //       );
+
+const eligible =
+  type === "sale"
+    ? (sales?.items ?? []).filter(
+        (item) =>
+          (!props.presetPatientId ||
+            item.patientId === props.presetPatientId) &&
+          ["completed", "partially_paid"].includes(item.status) &&
+          item.totalPaise > item.paidPaise,
+      )
+    : (purchases?.items ?? []).filter(
+        (item) =>
+          item.status === "received" &&
+          item.totalPaise > item.paidPaise,
+      );
+
 
   const selected = eligible.find((item) => item.id === transactionId);
 
